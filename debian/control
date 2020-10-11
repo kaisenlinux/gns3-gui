@@ -10,8 +10,7 @@ Vcs-Browser: https://gitlab.com/kaisenlinux/packages/gns3-gui
 
 Package: gns3-gui
 Architecture: all
-Depends: ${shlibs:Depends},
-	 ${misc:Depends},
+Depends: ${python3:Depends},
 	 python3-pyqt5.qtwebsockets,
 	 python3-pyqt5.qtsvg,
 	 python3-pip,
