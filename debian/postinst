@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -e
+
+if [[ "$1" = "configure" ]]; then
+	rm -f /usr/share/applications/gns3.desktop
+fi
+
+#DEBHELPER#
