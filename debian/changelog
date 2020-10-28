@@ -1,3 +1,9 @@
+gns3-gui (2.2.15-1kaisen3) kaisen-packages; urgency=medium
+
+  * Replace postinst script by override_dh_auto_install on debian/rules
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisen-linux.org>  Wed, 28 Oct 2020 22:13:41 +0200
+
 gns3-gui (2.2.15-1kaisen2) kaisen-packages; urgency=medium
 
   * Remove debian/patches/000-remove-launcher

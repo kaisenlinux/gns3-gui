@@ -5,3 +5,7 @@ export DEB_BUILD_OPTIONS=nocheck
 %:
 
 	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -rf debian/gns3-gui/usr/share/applications
