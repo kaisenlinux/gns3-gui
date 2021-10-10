@@ -53,7 +53,7 @@ class ProjectDialog(QtWidgets.QDialog, Ui_ProjectDialog):
 
         if show_open_options:
             self.uiOpenProjectPushButton.clicked.connect(self._openProjectActionSlot)
-            self.uiRecentProjectsPushButton.clicked.connect(self._showRecentProjectsSlot)
+            self._addRecentFilesMenu()
         else:
             self.uiOpenProjectGroupBox.hide()
             self.uiProjectTabWidget.removeTab(1)
@@ -231,12 +231,12 @@ class ProjectDialog(QtWidgets.QDialog, Ui_ProjectDialog):
         self._main_window.openProjectActionSlot()
         self.reject()
 
-    def _showRecentProjectsSlot(self):
+    def _addRecentFilesMenu(self):
         """
-        lot to show all the recent projects in a menu.
+        Add recent projects in a menu.
         """
 
-        menu = QtWidgets.QMenu()
+        menu = QtWidgets.QMenu(parent=self)
         if Controller.instance().isRemote():
             for action in self._main_window.recent_project_actions:
                 menu.addAction(action)
@@ -244,7 +244,7 @@ class ProjectDialog(QtWidgets.QDialog, Ui_ProjectDialog):
             for action in self._main_window.recent_file_actions:
                 menu.addAction(action)
         menu.triggered.connect(self._menuTriggeredSlot)
-        menu.exec_(QtGui.QCursor.pos())
+        self.uiRecentProjectsPushButton.setMenu(menu)
 
     def _overwriteProjectCallback(self, result, error=False, **kwargs):
         if error:
