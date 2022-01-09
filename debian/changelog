@@ -1,3 +1,10 @@
+gns3-gui (2.2.29-1kaisen) kaisen-packages; urgency=medium
+
+  * Update at 2.2.29
+  * Add python3-seuptools as dependancy
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Sun, 09 Jan 2022 01:49:02 +0100
+
 gns3-gui (2.2.27-1kaisen) kaisen-packages; urgency=medium
 
   * Update at 2.2.27
