@@ -1,12 +1,17 @@
 Author: Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>
 
---- gns3-gui-2.2.24.orig/requirements.txt
-+++ gns3-gui-2.2.24/requirements.txt
-@@ -1,4 +1,4 @@
+--- gns3-gui-2.2.32.orig/requirements.txt
++++ gns3-gui-2.2.32/requirements.txt
+@@ -1,6 +1,6 @@
 -jsonschema==3.2.0
 +jsonschema>=3.2.0
- sentry-sdk==1.5.4
+ sentry-sdk==1.5.10
 -psutil==5.9.0
 -distro==1.6.0
+-setuptools==60.6.0; python_version >= '3.7'  # don't upgrade because of https://github.com/pypa/setuptools/issues/3084
+-setuptools==59.6.0; python_version < '3.7'  # v59.7.0 dropped support for Python 3.6
+\ No newline at end of file
 +psutil>=5.9.0
 +distro>=1.6.0
++setuptools>=60.6.0; python_version >= '3.7'  # don't upgrade because of https://github.com/pypa/setuptools/issues/3084
++setuptools==59.6.0; python_version < '3.7'  # v59.7.0 dropped support for Python 3.6

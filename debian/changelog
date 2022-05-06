@@ -1,3 +1,11 @@
+gns3-gui (2.2.32-1kaisen) kaisen-packages; urgency=medium
+
+  * Import 2.2.32 version
+  * Update quilt patch
+  * Update requirements in the control file
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Fri, 06 May 2022 09:24:37 +0100
+
 gns3-gui (2.2.31-1kaisen) kaisen-packages; urgency=medium
 
   * Import 2.2.31 version
