@@ -1,3 +1,11 @@
+gns3-gui (2.2.34-2kaisen) kaisen-packages; urgency=medium
+
+  * Add the CVE-2007-4559.patch file to fix the CVE-2007-4559 vulnerability
+    Thanks to the company Trellix and the Trellix Vuln Team for reporting
+    this security vulnerability!
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Sun, 09 Oct 2022 21:59:23 +0100
+
 gns3-gui (2.2.34-1kaisen) kaisen-packages; urgency=medium
 
   * Import the 2.2.34 version
