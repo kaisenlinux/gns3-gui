@@ -1,3 +1,9 @@
+gns3-gui (2.2.38-1kaisen) kaisen-packages; urgency=medium
+
+  * Import the 2.2.38 version
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Sun, 19 Mar 2023 18:35:46 +0100
+
 gns3-gui (2.2.37-1kaisen) kaisen-packages; urgency=medium
 
   * Import the 2.2.37 version
