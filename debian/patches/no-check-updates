@@ -1,0 +1,87 @@
+Author: Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>
+
+--- gns3-gui-2.2.39.orig/gns3/update_manager.py
++++ gns3-gui-2.2.39/gns3/update_manager.py
+@@ -115,45 +115,45 @@ class UpdateManager(QtCore.QObject):
+         if re.match(r"^[a-z0-9\.]+$", latest_release) is None:
+             log.debug("Invalid answer from the update server")
+             return
+-        if parse_version(version.__version__) < parse_version(latest_release):
+-            reply = QtWidgets.QMessageBox.question(self._parent,
+-                                                   "Check For Update",
+-                                                   "Newer GNS3 version {} is available, do you want to visit our website to download it?".format(latest_release),
+-                                                   QtWidgets.QMessageBox.Yes,
+-                                                   QtWidgets.QMessageBox.No)
+-            if reply == QtWidgets.QMessageBox.Yes:
+-                QtGui.QDesktopServices.openUrl(QtCore.QUrl("http://www.gns3.com/software"))
+-        elif not self._silent:
+-            QtWidgets.QMessageBox.information(self._parent, "Check For Update", "GNS3 is up-to-date!")
++#        if parse_version(version.__version__) < parse_version(latest_release):
++#            reply = QtWidgets.QMessageBox.question(self._parent,
++#                                                   "Check For Update",
++#                                                   "Newer GNS3 version {} is available, do you want to visit our website to download it?".format(latest_release),
++#                                                   QtWidgets.QMessageBox.Yes,
++#                                                   QtWidgets.QMessageBox.No)
++#            if reply == QtWidgets.QMessageBox.Yes:
++#                QtGui.QDesktopServices.openUrl(QtCore.QUrl("http://www.gns3.com/software"))
++#        elif not self._silent:
++#            QtWidgets.QMessageBox.information(self._parent, "Check For Update", "GNS3 is up-to-date!")
+ 
+-    def _pypiReplySlot(self):
+-        network_reply = self.sender()
+-        if network_reply.error() != QtNetwork.QNetworkReply.NoError:
+-            if not self._silent:
+-                QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Cannot check for update: {}".format(network_reply.errorString()))
+-            return
+-        try:
+-            body = bytes(network_reply.readAll()).decode("utf-8")
+-            body = json.loads(body)
+-        except (UnicodeEncodeError, ValueError) as e:
+-            log.warning("Invalid answer from the PyPi server: {}".format(e))
+-            QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Invalid answer from PyPi server")
+-            return
++#    def _pypiReplySlot(self):
++#        network_reply = self.sender()
++#        if network_reply.error() != QtNetwork.QNetworkReply.NoError:
++#            if not self._silent:
++#                QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Cannot check for update: {}".format(network_reply.errorString()))
++#            return
++#        try:
++#            body = bytes(network_reply.readAll()).decode("utf-8")
++#            body = json.loads(body)
++#        except (UnicodeEncodeError, ValueError) as e:
++#            log.warning("Invalid answer from the PyPi server: {}".format(e))
++#            QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Invalid answer from PyPi server")
++#            return
+ 
+-        last_version = self._getLastMinorVersionFromPyPiReply(body)
+-        if parse_version(last_version) > parse_version(version.__version__):
+-            reply = QtWidgets.QMessageBox.question(self._parent,
+-                                                   "Check For Update",
+-                                                   "Newer GNS3 version {} is available, do you want to to download it in background and install it at next application launch?".format(last_version),
+-                                                   QtWidgets.QMessageBox.Yes,
+-                                                   QtWidgets.QMessageBox.No)
+-            if reply == QtWidgets.QMessageBox.Yes:
+-                try:
+-                    self.downloadUpdates(last_version)
+-                except OSError as e:
+-                    QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Cannot download update: {}".format(e))
+-        else:
+-            self._get('http://update.gns3.net', self._gns3UpdateReplySlot)
++#        last_version = self._getLastMinorVersionFromPyPiReply(body)
++#        if parse_version(last_version) > parse_version(version.__version__):
++#           reply = QtWidgets.QMessageBox.question(self._parent,
++#                                                   "Check For Update",
++#                                                   "Newer GNS3 version {} is available, do you want to to download it in background and install it at next application launch?".format(last_version),
++#                                                   QtWidgets.QMessageBox.Yes,
++#                                                   QtWidgets.QMessageBox.No)
++#            if reply == QtWidgets.QMessageBox.Yes:
++#                try:
++#                    self.downloadUpdates(last_version)
++#                except OSError as e:
++#                    QtWidgets.QMessageBox.critical(self._parent, "Check For Update", "Cannot download update: {}".format(e))
++#        else:
++#            self._get('http://update.gns3.net', self._gns3UpdateReplySlot)
+ 
+     def _getLastMinorVersionFromPyPiReply(self, body):
+         """

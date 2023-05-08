@@ -1,3 +1,11 @@
+gns3-gui (2.2.39-1kaisen) kaisen-packages; urgency=medium
+
+  * Import the 2.2.39 version
+  * Update dependancies version
+  * Add the no-check-updates quilt patch
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Mon, 08 May 2023 22:42:39 +0100
+
 gns3-gui (2.2.38-1kaisen) kaisen-packages; urgency=medium
 
   * Import the 2.2.38 version
