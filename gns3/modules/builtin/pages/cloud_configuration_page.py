@@ -473,9 +473,13 @@ class CloudConfigurationPage(QtWidgets.QWidget, Ui_cloudConfigPageWidget):
             if index != -1:
                 self.uiCategoryComboBox.setCurrentIndex(index)
 
-            Controller.instance().getCompute("/network/interfaces", settings["compute_id"],
-                                             self._getInterfacesFromServerCallback,
-                                             progressText="Retrieving network interfaces...")
+            Controller.instance().getCompute(
+                "/network/interfaces",
+                settings["compute_id"],
+                self._getInterfacesFromServerCallback,
+                progress_text="Retrieving network interfaces...",
+                wait=True
+            )
 
         else:
             self.uiDefaultNameFormatLabel.hide()
@@ -490,6 +494,7 @@ class CloudConfigurationPage(QtWidgets.QWidget, Ui_cloudConfigPageWidget):
             self._interfaces = self._node.interfaces()
             self._loadNetworkInterfaces(self._interfaces)
 
+        self.uiUsageTextEdit.setPlainText(settings["usage"])
         # load the current ports
         self._ports = []
         self.uiEthernetListWidget.clear()
@@ -560,4 +565,6 @@ class CloudConfigurationPage(QtWidgets.QWidget, Ui_cloudConfigPageWidget):
             settings["ports_mapping"] = self._ports
         else:
             settings["ports_mapping"] = self._ports
+
+        settings["usage"] = self.uiUsageTextEdit.toPlainText()
         return settings

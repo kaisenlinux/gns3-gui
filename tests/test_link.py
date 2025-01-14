@@ -104,6 +104,9 @@ def test_create_link(devices, project, controller):
     assert link._link_id is not None
     assert not devices[0].ports()[0].isFree()
 
+    #assert link in devices[0].links()
+    #assert link in devices[1].links()
+
     assert link.getNodePort(devices[0]) == devices[0].ports()[0]
     assert link.getNodePort(devices[1]) == devices[1].ports()[0]
 
@@ -127,9 +130,9 @@ def test_delete_link(devices, project, controller):
 
 def test_start_capture_link(link, controller, project):
     link.startCapture("DLT_EN10MB", "test.pcap")
-    controller.post.assert_called_with("/projects/{}/links/{}/start_capture".format(project.id(), link._link_id), link._startCaptureCallback, body={'capture_file_name': 'test.pcap', 'data_link_type': 'DLT_EN10MB'})
+    controller.post.assert_called_with("/projects/{}/links/{}/capture/start".format(project.id(), link._link_id), link._startCaptureCallback, body={'capture_file_name': 'test.pcap', 'data_link_type': 'DLT_EN10MB'})
 
 
 def test_stop_capture_link(link, controller, project):
     link.stopCapture()
-    controller.post.assert_called_with("/projects/{}/links/{}/stop_capture".format(project.id(), link._link_id), link._stopCaptureCallback)
+    controller.post.assert_called_with("/projects/{}/links/{}/capture/stop".format(project.id(), link._link_id), link._stopCaptureCallback)

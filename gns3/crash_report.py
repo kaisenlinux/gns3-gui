@@ -15,6 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
+import os
+import platform
+import struct
+import distro
+
 try:
     import sentry_sdk
     from sentry_sdk.integrations.logging import LoggingIntegration
@@ -22,12 +28,6 @@ try:
 except ImportError:
     # Sentry SDK is not installed with deb package in order to simplify packaging
     SENTRY_SDK_AVAILABLE = False
-
-import sys
-import os
-import platform
-import struct
-import distro
 
 from .version import __version__, __version_info__
 
@@ -50,7 +50,7 @@ class CrashReport:
     Report crash to a third party service
     """
 
-    DSN = "https://3dec04c8d64949b41e70d86b398871ee@o19455.ingest.sentry.io/38506"
+    DSN = "https://142c803f12d32e781a654ef31138c684@o19455.ingest.us.sentry.io/38506"
     _instance = None
 
     def __init__(self):

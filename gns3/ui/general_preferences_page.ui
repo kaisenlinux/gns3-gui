@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>512</width>
-    <height>652</height>
+    <width>963</width>
+    <height>1168</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -993,6 +993,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="uiAutoOpenReadmeCheckBox">
+         <property name="text">
+          <string>Automatically open project README files</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="uiCrashReportCheckBox">
          <property name="text">
           <string>Send anonymous crash reports</string>
@@ -1012,7 +1022,7 @@
        <item>
         <widget class="QCheckBox" name="uiExperimentalFeaturesCheckBox">
          <property name="text">
-          <string>Enable experimental features (dangerous, restart required)</string>
+          <string>Enable experimental features</string>
          </property>
         </widget>
        </item>
@@ -1027,16 +1037,6 @@
         <widget class="QCheckBox" name="uiMultiProfilesCheckBox">
          <property name="text">
           <string>Request for profile settings at application startup</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="uiDirectFileUpload">
-         <property name="toolTip">
-          <string>Experimental, requires computes visibility from GUI network</string>
-         </property>
-         <property name="text">
-          <string>Upload files directly to computes (experimental)</string>
          </property>
         </widget>
        </item>
@@ -1128,7 +1128,6 @@
   <tabstop>uiExperimentalFeaturesCheckBox</tabstop>
   <tabstop>uiHdpiCheckBox</tabstop>
   <tabstop>uiMultiProfilesCheckBox</tabstop>
-  <tabstop>uiDirectFileUpload</tabstop>
   <tabstop>uiRestoreDefaultsPushButton</tabstop>
   <tabstop>uiMiscTabWidget</tabstop>
  </tabstops>

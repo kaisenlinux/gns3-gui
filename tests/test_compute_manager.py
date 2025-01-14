@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import copy
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, ANY
 
 from gns3.compute_manager import ComputeManager
 from gns3.compute import Compute
@@ -43,6 +43,7 @@ def test_getComputeRemote1X():
         "user": None,
         "cpu_usage_percent": None,
         "memory_usage_percent": None,
+        "disk_usage_percent": None,
         "capabilities": {"test": "a"}
     })
 
@@ -59,7 +60,7 @@ def test_deleteCompute(controller):
     cm.deleteCompute("test")
     assert "test" not in cm._computes
     assert callback_delete.called
-    controller._http_client.createHTTPQuery.assert_called_with("DELETE", "/computes/test", None)
+    controller._http_client.sendRequest.assert_called_with("DELETE", "/computes/test", None)
 
 
 def test_listComputesCallback():
@@ -77,6 +78,7 @@ def test_listComputesCallback():
             "user": None,
             "cpu_usage_percent": None,
             "memory_usage_percent": None,
+            "disk_usage_percent": None,
             "capabilities": {"test": "a"}
         }
     ])
@@ -100,6 +102,7 @@ def test_computeDataReceivedCallback():
         "user": None,
         "cpu_usage_percent": None,
         "memory_usage_percent": None,
+        "disk_usage_percent": None,
         "capabilities": {"test": "a"}
     })
     assert cm._computes["test"].name() == "Test server"
@@ -123,6 +126,7 @@ def test_computeDataReceivedCallback():
         "user": None,
         "cpu_usage_percent": None,
         "memory_usage_percent": None,
+        "disk_usage_percent": None,
         "capabilities": {"test": "a"}
     })
     assert cm._computes["test"].name() == "Test Compute"
@@ -152,7 +156,7 @@ def test_updateList_updated(controller):
     compute.setName("TEST2")
     cm.updateList(computes)
     assert cm._computes["test1"].name() == "TEST2"
-    controller._http_client.createHTTPQuery.assert_called_with("PUT", "/computes/test1", None, body=compute.__json__())
+    controller._http_client.sendRequest.assert_called_with("PUT", "/computes/test1", None, body=compute.__json__())
 
 
 def test_updateList_added(controller):
@@ -163,7 +167,7 @@ def test_updateList_added(controller):
     controller._http_client = MagicMock()
     cm.updateList(computes)
     assert compute.id() in cm._computes
-    controller._http_client.createHTTPQuery.assert_called_with("POST", "/computes", None, body=compute.__json__())
+    controller._http_client.sendRequest.assert_called_with("POST", "/computes", callback=ANY, body=compute.__json__(), params={'connect': True})
 
 
 def test_updateList_no_change(controller):
@@ -173,4 +177,4 @@ def test_updateList_no_change(controller):
     computes.append(compute)
     controller._http_client = MagicMock()
     cm.updateList(computes)
-    assert not controller._http_client.createHTTPQuery.called
+    assert not controller._http_client.sendRequest.called

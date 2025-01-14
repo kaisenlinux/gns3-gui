@@ -88,9 +88,10 @@ class VMWithImagesWizard(VMWizard):
         self._radio_existing_images_buttons.add(radio_button)
 
     def _imageCreateSlot(self, line_edit, create_image_wizard, image_suffix):
-        create_dialog = create_image_wizard(self, self.getSettings()["compute_id"], self.uiNameLineEdit.text() + image_suffix)
-        if QtWidgets.QDialog.Accepted == create_dialog.exec_():
-            line_edit.setText(create_dialog.uiLocationLineEdit.text())
+
+        create_dialog = create_image_wizard(self, Controller.instance(), self.uiNameLineEdit.text() + image_suffix)
+        if create_dialog.exec_() == QtWidgets.QDialog.Accepted:
+            line_edit.setText(create_dialog.uiDiskFilenameLineEdit.text())
 
     def _imageBrowserSlot(self, line_edit, image_selector):
         """
@@ -135,14 +136,17 @@ class VMWithImagesWizard(VMWizard):
             if create_button:
                 create_button.show()
 
-    def loadImagesList(self, endpoint):
+    def loadImagesList(self, image_type):
         """
-        Fill the list box with available Images"
+        Fill the list box with available images
 
-        :param endpoint: server endpoint with the list of Images
+        :param image_type: image type (qemu, iou or ios)
         """
 
-        Controller.instance().getCompute(endpoint, self._compute_id, self._getImagesFromServerCallback)
+        params = None
+        if image_type:
+            params = {"image_type": image_type}
+        Controller.instance().get("/images", self._getImagesFromServerCallback, params=params)
 
     def _getImagesFromServerCallback(self, result, error=False, **kwargs):
         """
@@ -179,7 +183,7 @@ class VMWithImagesWizard(VMWizard):
             if self._widgetOnCurrentPage(combo_box):
                 combo_box.clear()
                 for vm in result:
-                    combo_box.addItem(vm["path"], vm)
+                    combo_box.addItem(vm["filename"], vm)
 
     def _widgetOnCurrentPage(self, widget):
         """

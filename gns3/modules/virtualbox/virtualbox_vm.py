@@ -18,6 +18,7 @@
 """
 VirtualBox VM implementation.
 """
+import sys
 
 from gns3.node import Node
 from gns3.utils.bring_to_front import bring_window_to_front_from_process_name
@@ -69,7 +70,7 @@ class VirtualBoxVM(Node):
 
         info = """VirtualBox VM {name} is {state}
   Running on server {host} with port {port}
-  Local ID is {id} and server ID is {node_id}
+  Local ID is {id} and node ID is {node_id}
   VirtualBox's name is "{vmname}"
   Amount of memory is {ram}MB
   Console is on port {console} and type is {console_type}
@@ -100,7 +101,7 @@ class VirtualBoxVM(Node):
         Bring the VM window to front.
         """
 
-        if self.status() == Node.started:
+        if self.status() == Node.started and sys.platform.startswith("win"):
             # try 2 different window title formats
             bring_window_to_front_from_process_name("VirtualBox.exe", title="{} [".format(self._settings["vmname"]))
             bring_window_to_front_from_process_name("VirtualBox.exe", title="{} (".format(self._settings["vmname"]))

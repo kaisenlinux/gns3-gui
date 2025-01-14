@@ -38,6 +38,7 @@ class VMwareVMWizard(VMWizard, Ui_VMwareVMWizard):
 
         super().__init__(vmware_vms, parent)
         self._vmware_vms = vmware_vms
+        self._allow_dynamic_compute_allocation = False
         self.setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(":/symbols/vmware_guest.svg"))
 
     def validateCurrentPage(self):
@@ -59,7 +60,13 @@ class VMwareVMWizard(VMWizard, Ui_VMwareVMWizard):
         super().initializePage(page_id)
         if self.page(page_id) == self.uiVMwareWizardPage:
             self.uiVMListComboBox.clear()
-            Controller.instance().getCompute("/vmware/vms", self._compute_id, self._getVMwareVMsFromServerCallback, progressText="Listing VMware VMs...")
+            Controller.instance().getCompute(
+                "/vmware/vms",
+                self._compute_id,
+                self._getVMwareVMsFromServerCallback,
+                progress_text="Listing VMware VMs...",
+                wait=True
+            )
 
     def _getVMwareVMsFromServerCallback(self, result, error=False, **kwargs):
         """

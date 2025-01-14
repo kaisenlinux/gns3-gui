@@ -49,6 +49,7 @@ from gns3.crash_report import CrashReport
 from gns3.local_config import LocalConfig
 from gns3.application import Application
 from gns3.utils import parse_version
+from gns3.utils.install_mime_types import install_mime_types
 from gns3.dialogs.profile_select import ProfileSelectDialog
 from gns3.version import __version__
 
@@ -119,8 +120,13 @@ def main():
     parser.add_argument("-q", "--quiet", action="store_true", help="do not show logs on stdout")
     parser.add_argument("--config", help="Configuration file")
     parser.add_argument("--profile", help="Settings profile (blank will use default settings files)")
+    parser.add_argument("--install-mime-types", help="Install mime types (Linux only)", action="store_true", default=False)
     options = parser.parse_args()
     exception_file_path = "exceptions.log"
+
+    if options.install_mime_types:
+        install_mime_types()
+        return
 
     if options.project:
         options.project = os.path.abspath(options.project)
@@ -144,7 +150,6 @@ def main():
                 os.path.normpath(os.path.join(frozen_dir, 'dynamips')),
                 os.path.normpath(os.path.join(frozen_dir, 'ubridge')),
                 os.path.normpath(os.path.join(frozen_dir, 'vpcs')),
-                os.path.normpath(os.path.join(frozen_dir, 'traceng'))
             ]
 
         os.environ["PATH"] = os.pathsep.join(frozen_dirs) + os.pathsep + os.environ.get("PATH", "")
@@ -184,9 +189,9 @@ def main():
     # catch exceptions to write them in a file
     sys.excepthook = exceptionHook
 
-    # we only support Python 3 version >= 3.7
-    if sys.version_info < (3, 7):
-        raise SystemExit("Python 3.7 or higher is required")
+    # we only support Python 3 version >= 3.9
+    if sys.version_info < (3, 9):
+        raise SystemExit("Python 3.9 or higher is required")
 
     if parse_version(QtCore.QT_VERSION_STR) < parse_version("5.5.0"):
         raise SystemExit("Requirement is PyQt5 version 5.5.0 or higher, got version {}".format(QtCore.QT_VERSION_STR))

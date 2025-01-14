@@ -23,7 +23,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from gns3.local_server import LocalServer
-from gns3.local_server_config import LocalServerConfig
 
 
 @pytest.fixture
@@ -38,7 +37,6 @@ def local_server(local_server_path, tmpdir):
 [Server]
 path={}""".format(local_server_path))
 
-    LocalServerConfig.instance().setConfigFile(str(tmpdir / "test.cfg"))
     LocalServer._instance = None
     with patch("gns3.local_server.LocalServer.localServerAutoStartIfRequired"):
         local_server = LocalServer.instance()
@@ -46,32 +44,9 @@ path={}""".format(local_server_path))
         yield local_server
 
 
-def test_loadSettings_EmptySettings(tmpdir, local_server):
-
-    with open(str(tmpdir / "test.cfg"), "w+") as f:
-        f.write("")
-    LocalServerConfig.instance().setConfigFile(str(tmpdir / "test.cfg"))
-
-    assert local_server.localServerSettings()["auth"]
-    assert local_server.localServerSettings()["port"] == 3080
-    assert len(local_server.localServerSettings()["password"]) == 64
-    assert local_server.localServerSettings()["user"] == "admin"
-
-
-def test_loadSettings(tmpdir, local_server):
-    with open(str(tmpdir / "test.cfg"), "w+") as f:
-        f.write("""
-[Server]
-auth=True
-user=world
-password=hello""")
-
-    LocalServerConfig.instance().setConfigFile(str(tmpdir / "test.cfg"))
-    assert local_server.localServerSettings()["password"] == "hello"
-
-
+# Windows GUI doesn't support a local server starting with v3.0
 @pytest.mark.skipif(sys.platform.startswith('win') is True, reason='Not for windows')
-def test_startLocalServer(tmpdir, local_server, local_server_path):
+def test_start_local_server(tmpdir, local_server, local_server_path):
     logging.getLogger().setLevel(logging.DEBUG)  # Make sure we are using debug level in order to get the --debug
 
     process_mock = MagicMock()
@@ -83,13 +58,16 @@ def test_startLocalServer(tmpdir, local_server, local_server_path):
         LocalServer.instance().startLocalServer()
         mock.assert_called_with([unittest.mock.ANY,
                                  '--local',
+                                 '--allow',
                                  '--debug',
-                                 '--log=' + str(tmpdir / "gns3_server.log"),
+                                 '--logfile=' + str(tmpdir / "gns3_server.log"),
                                  '--pid=' + str(tmpdir / "gns3_server.pid")
                                  ], stderr=unittest.mock.ANY, env=unittest.mock.ANY)
 
 
-def test_killAlreadyRunningServer(local_server):
+# Windows GUI doesn't support a local server starting with v3.0
+@pytest.mark.skipif(sys.platform.startswith('win') is True, reason='Not for windows')
+def test_kill_already_running_server(local_server):
     with open(local_server._pid_path(), "w+") as f:
         f.write("42")
 

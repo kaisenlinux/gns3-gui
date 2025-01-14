@@ -39,6 +39,7 @@ from .dialogs.snapshots_dialog import SnapshotsDialog
 from .dialogs.export_debug_dialog import ExportDebugDialog
 from .dialogs.doctor_dialog import DoctorDialog
 from .dialogs.edit_project_dialog import EditProjectDialog
+from .dialogs.image_dialog import ImageDialog
 from .dialogs.setup_wizard import SetupWizard
 from .settings import GENERAL_SETTINGS
 from .items.node_item import NodeItem
@@ -85,7 +86,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.setUnifiedTitleAndToolBarOnMac(True)
 
-        # These widgets will be disabled when no project is loaded
+        # This widgets will be disabled when you have no project loaded
         self.disableWhenNoProjectWidgets = [
             self.uiGraphicsView,
             self.uiAnnotateMenu,
@@ -99,8 +100,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.uiEditProjectAction,
             self.uiDeleteProjectAction,
             self.uiImportExportConfigsAction,
-            self.uiLockAllAction
+            self.uiLockAllAction,
+            self.uiShowReadmeAction
         ]
+
+        for widget in self.disableWhenNoProjectWidgets:
+            widget.setEnabled(False)
+
+        self.disableWhenControllerNotConnectedWidgets = [
+            self.uiNewProjectAction,
+            self.uiOpenProjectAction,
+            self.uiImportProjectAction,
+            self.uiNewTemplateAction,
+            self.uiImportProjectAction,
+            self.uiOpenApplianceAction,
+            self.uiWebUIAction,
+            self.uiNodesDockWidget
+        ]
+
+        for widget in self.disableWhenControllerNotConnectedWidgets:
+            widget.setEnabled(False)
 
         self._notif_dialog = NotifDialog(self)
         # Setup logger
@@ -115,8 +134,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         topology.project_changed_signal.connect(self._projectChangedSlot)
         Controller.instance().setParent(self)
         LocalServer.instance().setParent(self)
-
-        HTTPClient.setProgressCallback(Progress.instance(self))
 
         self._first_file_load = True
         self._open_project_path = None
@@ -171,7 +188,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.uiFileMenu.insertActions(self.uiQuitAction, self.recent_file_actions)
         self.recent_file_actions_separator = self.uiFileMenu.insertSeparator(self.uiQuitAction)
         self.recent_file_actions_separator.setVisible(False)
-        self.updateRecentFileActions()
+        #self.updateRecentFileActions()
 
         # add recent projects to the File menu
         for i in range(0, self._maxrecent_files):
@@ -207,6 +224,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.uiOpenProjectAction.triggered.connect(self.openProjectActionSlot)
         self.uiOpenApplianceAction.triggered.connect(self.openApplianceActionSlot)
         self.uiNewTemplateAction.triggered.connect(self._newTemplateActionSlot)
+        self.uiImageManagementAction.triggered.connect(self._imageManagementActionSlot)
         self.uiSaveProjectAsAction.triggered.connect(self._saveProjectAsActionSlot)
         self.uiExportProjectAction.triggered.connect(self._exportProjectActionSlot)
         self.uiImportProjectAction.triggered.connect(self._importProjectActionSlot)
@@ -231,6 +249,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.uiResetPortLabelsAction.triggered.connect(self._resetPortLabelsActionSlot)
         self.uiShowPortNamesAction.triggered.connect(self._showPortNamesActionSlot)
         self.uiShowGridAction.triggered.connect(self._showGridActionSlot)
+        self.uiShowReadmeAction.triggered.connect(self._showReadmeActionSlot)
         self.uiSnapToGridAction.triggered.connect(self._snapToGridActionSlot)
         self.uiLockAllAction.triggered.connect(self._lockActionSlot)
         self.uiResetGUIStateAction.triggered.connect(self._resetGUIState)
@@ -268,6 +287,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.uiExportDebugInformationAction.triggered.connect(self._exportDebugInformationSlot)
         self.uiDoctorAction.triggered.connect(self._doctorSlot)
         self.uiAcademyAction.triggered.connect(self._academyActionSlot)
+        self.uiShortcutsAction.triggered.connect(self._shortcutsActionSlot)
 
         # browsers tool bar connections
         self.uiBrowseRoutersAction.triggered.connect(self._browseRoutersActionSlot)
@@ -323,7 +343,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
     def _openWebInterfaceActionSlot(self):
         if Controller.instance().connected():
             base_url = Controller.instance().httpClient().fullUrl()
-            webui_url = "{}/static/web-ui/bundled".format(base_url)
+            webui_url = f"{base_url}/static/web-ui/bundled"
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(webui_url))
 
     def _showGridActionSlot(self):
@@ -414,6 +434,15 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
 
         dialog = NewTemplateWizard(self)
+        dialog.show()
+        dialog.exec_()
+
+    def _imageManagementActionSlot(self):
+        """
+        Called when user wants to manage images
+        """
+
+        dialog = ImageDialog(self)
         dialog.show()
         dialog.exec_()
 
@@ -513,7 +542,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self._appliance_wizard.exec_()
         elif path.endswith(".gns3"):
             if Controller.instance().isRemote():
-                QtWidgets.QMessageBox.critical(self, "Open project", "Cannot open a .gns3 file on a remote server, please use a portable project (.gns3p) instead")
+                QtWidgets.QMessageBox.critical(self, "Open project", "Cannot open a .gns3 file on a remote server, please use a project (.gns3p) instead")
                 return
             else:
                 Topology.instance().loadProject(path)
@@ -552,6 +581,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         """
         Refresh widgets that should be visible or not
         """
+
+        for widget in self.disableWhenControllerNotConnectedWidgets:
+            widget.setEnabled(Controller.instance().connected())
 
         # No projects
         if Topology.instance().project() is None:
@@ -972,12 +1004,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Slot to open the setup wizard.
         """
 
-        with Progress.instance().context(min_duration=0):
-            setup_wizard = SetupWizard(self)
-            setup_wizard.show()
-            res = setup_wizard.exec_()
-            # start and connect to the local server if needed
-            LocalServer.instance().localServerAutoStartIfRequired()
+        setup_wizard = SetupWizard(self)
+        setup_wizard.show()
+        setup_wizard.exec_()
+
+    def _shortcutsActionSlot(self):
+
+        shortcuts_text = ""
+        for action in self.findChildren(QtWidgets.QAction):
+            shortcut = action.shortcut().toString()
+            if shortcut:
+                shortcuts_text += f"{action.toolTip()}: {shortcut}\n"
+        QtWidgets.QMessageBox.information(self, "Shortcuts", shortcuts_text)
 
     def _aboutQtActionSlot(self):
         """
@@ -1110,6 +1148,12 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         Slot to edit the README file
         """
         Topology.instance().editReadme()
+
+    def _showReadmeActionSlot(self):
+        """
+        Slot to show the README file
+        """
+        Topology.instance().showReadme()
 
     def resizeEvent(self, event):
         self._notif_dialog.resize()
@@ -1251,13 +1295,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         if not self._settings["hide_setup_wizard"]:
             self._setupWizardActionSlot()
         else:
-            # start and connect to the local server if needed
-            LocalServer.instance().localServerAutoStartIfRequired()
-            if self._open_file_at_startup:
-                self.loadPath(self._open_file_at_startup)
-                self._open_file_at_startup = None
-            elif Topology.instance().project() is None:
-                self._newProjectActionSlot()
+            if Controller.instance().isRemote():
+                Controller.instance().connect()
+            else:
+                # start and connect to the local server if needed
+                LocalServer.instance().localServerAutoStartIfRequired()
 
         if self._settings["check_for_update"]:
             # automatic check for update every week (604800 seconds)
@@ -1410,8 +1452,16 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.recent_file_actions_separator.setVisible(False)
 
     def _controllerConnectedSlot(self):
+
         self.updateRecentFileActions()
         self._refreshVisibleWidgets()
+
+        if self._settings["hide_setup_wizard"]:
+            if self._open_file_at_startup:
+                self.loadPath(self._open_file_at_startup)
+                self._open_file_at_startup = None
+            elif Topology.instance().project() is None and QtWidgets.QApplication.activeModalWidget() is None:
+                self._newProjectActionSlot()
 
     def run_later(self, counter, callback):
         """
@@ -1425,20 +1475,20 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def _exportProjectActionSlot(self):
         """
-        Slot called to export a portable project
+        Slot called to export a project
         """
 
         Topology.instance().exportProject()
 
     def _importProjectActionSlot(self):
         """
-        Slot called to import a portable project
+        Slot called to import a project
         """
 
         directory = self._portable_project_dir
         if not os.path.exists(directory):
             directory = Topology.instance().projectsDirPath()
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open portable project", directory,
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open project", directory,
                                                         "All files (*.*);;GNS3 Portable Project (*.gns3project *.gns3p)",
                                                         "GNS3 Portable Project (*.gns3project *.gns3p)")
         if path:

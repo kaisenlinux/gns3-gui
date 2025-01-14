@@ -16,8 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import pathlib
 import re
+import shutil
+import subprocess
 
 from gns3.controller import Controller
 from gns3.ports.ethernet_port import EthernetPort
@@ -234,6 +237,13 @@ class Node(BaseNode):
 
         return self.controllerHttpPost("/nodes/{node_id}{path}".format(node_id=self._node_id, path=path), *args, **kwargs)
 
+    def put(self, path, *args, **kwargs):
+        """
+        PUT on current server / project
+        """
+
+        return self.controllerHttpPut("/nodes/{node_id}{path}".format(node_id=self._node_id, path=path), *args, **kwargs)
+
     def start(self):
         """
         Starts this node instance.
@@ -244,7 +254,7 @@ class Node(BaseNode):
             return
 
         log.debug("{} is starting".format(self.name()))
-        self.post("/start", self._startCallback, timeout=None, showProgress=False)
+        self.post("/start", self._startCallback, timeout=None, show_progress=False)
 
     def _startCallback(self, result, error=False, **kwargs):
         """
@@ -270,7 +280,7 @@ class Node(BaseNode):
             return
 
         log.debug("{} is stopping".format(self.name()))
-        self.post("/stop", self._stopCallback, timeout=None, showProgress=False)
+        self.post("/stop", self._stopCallback, timeout=None, show_progress=False)
 
     def _stopCallback(self, result, error=False, **kwargs):
         """
@@ -300,7 +310,7 @@ class Node(BaseNode):
             return
 
         log.debug("{} is being suspended".format(self.name()))
-        self.post("/suspend", self._suspendCallback, timeout=None, showProgress=False)
+        self.post("/suspend", self._suspendCallback, timeout=None, show_progress=False)
 
     def _suspendCallback(self, result, error=False, **kwargs):
         """
@@ -322,7 +332,7 @@ class Node(BaseNode):
         """
 
         log.debug("{} is being reloaded".format(self.name()))
-        self.post("/reload", self._reloadCallback, timeout=None, showProgress=False)
+        self.post("/reload", self._reloadCallback, timeout=None, show_progress=False)
 
     def _reloadCallback(self, result, error=False, **kwargs):
         """
@@ -334,6 +344,50 @@ class Node(BaseNode):
 
         if error:
             log.error("error while reloading {}: {}".format(self.name(), result["message"]))
+            self.server_error_signal.emit(self.id(), result["message"])
+        else:
+            self._parseControllerResponse(result)
+
+    def isolate(self):
+        """
+        Isolates this node instance.
+        """
+
+        log.debug("{} is being isolated".format(self.name()))
+        self.post("/isolate", self._isolateCallback, timeout=None, show_progress=False)
+
+    def _isolateCallback(self, result, error=False, **kwargs):
+        """
+        Callback for isolate
+
+        :param result: server response (dict)
+        :param error: indicates an error (boolean)
+        """
+
+        if error:
+            log.error("error while isolating {}: {}".format(self.name(), result["message"]))
+            self.server_error_signal.emit(self.id(), result["message"])
+        else:
+            self._parseControllerResponse(result)
+
+    def unisolate(self):
+        """
+        Un-isolates this node instance.
+        """
+
+        log.debug("{} is being un-isolated".format(self.name()))
+        self.post("/unisolate", self._unisolateCallback, timeout=None, show_progress=False)
+
+    def _unisolateCallback(self, result, error=False, **kwargs):
+        """
+        Callback for unisolate
+
+        :param result: server response (dict)
+        :param error: indicates an error (boolean)
+        """
+
+        if error:
+            log.error("error while un-isolating {}: {}".format(self.name(), result["message"]))
             self.server_error_signal.emit(self.id(), result["message"])
         else:
             self._parseControllerResponse(result)
@@ -399,6 +453,8 @@ class Node(BaseNode):
         general_node_properties = ("name",
                                    "console",
                                    "console_type",
+                                   "aux",
+                                   "aux_type",
                                    "x",
                                    "y",
                                    "z",
@@ -434,7 +490,7 @@ class Node(BaseNode):
 
         log.debug("{} is updating settings: {}".format(self.name(), params))
         body = self._prepareBodyForUpdate(params)
-        self.controllerHttpPut("/nodes/{node_id}".format(node_id=self._node_id), self._updateOnControllerCallback, body=body, timeout=timeout, showProgress=False)
+        self.controllerHttpPut("/nodes/{node_id}".format(node_id=self._node_id), self._updateOnControllerCallback, body=body, timeout=timeout, show_progress=False)
 
     def _updateOnControllerCallback(self, result, error=False, **kwargs):
         """
@@ -476,7 +532,7 @@ class Node(BaseNode):
         if not skip_controller:
             for link in self.links():
                 link.setDeleting()
-            self.controllerHttpDelete("/nodes/{node_id}".format(node_id=self._node_id), self._deleteCallback, showProgress=False)
+            self.controllerHttpDelete("/nodes/{node_id}".format(node_id=self._node_id), self._deleteCallback, show_progress=False)
         else:
             self.deleted_signal.emit()
             self._module.removeNode(self)
@@ -506,7 +562,7 @@ class Node(BaseNode):
                   "y": int(y),
                   "z": int(z)}
 
-        self.post("/duplicate", self._duplicateCallback, body=params, timeout=None, showProgress=False)
+        self.post("/duplicate", self._duplicateCallback, body=params, timeout=None, show_progress=False)
 
     def _duplicateCallback(self, result, error=False, **kwargs):
         """
@@ -559,7 +615,7 @@ class Node(BaseNode):
             del result["properties"]
 
         # Update common element of all nodes
-        for key in ["x", "y", "z", "locked", "symbol", "label", "console_host", "console", "console_type", "console_auto_start", "custom_adapters", "first_port_name", "port_name_format", "port_segment_size"]:
+        for key in ["x", "y", "z", "locked", "symbol", "label", "console_host", "console", "console_type", "console_auto_start", "aux", "aux_type", "custom_adapters", "first_port_name", "port_name_format", "port_segment_size"]:
             if key in result:
                 self._settings[key] = result[key]
 
@@ -680,6 +736,16 @@ class Node(BaseNode):
             host = Controller.instance().host()
         return host
 
+    def auxType(self):
+        """
+        Get the auxiliary console type (serial, telnet or VNC)
+        """
+
+        aux_type = "none"
+        if "aux_type" in self.settings():
+            return self.settings()["aux_type"]
+        return aux_type
+
     def setStatus(self, status):
         """
         Overloaded setStatus() method for console auto start.
@@ -702,7 +768,7 @@ class Node(BaseNode):
 
         if command is None:
             if aux:
-                command = self.consoleCommand(console_type="telnet")
+                command = self.consoleCommand(console_type=self.auxType())
             else:
                 command = self.consoleCommand()
 
@@ -712,8 +778,8 @@ class Node(BaseNode):
             console_port = self.auxConsole()
             if console_port is None:
                 raise ValueError("AUX console port not allocated for {}".format(self.name()))
-            # AUX console is always telnet
-            console_type = "telnet"
+            if "aux_type" in self.settings():
+                console_type = self.auxType()
         else:
             console_port = self.console()
             if console_port is None:
@@ -740,18 +806,30 @@ class Node(BaseNode):
         """
 
         if self.status() == Node.started:
-            console_command = self.consoleCommand()
-            if console_command:
-                process_name = console_command.split()[0]
-                if bring_window_to_front_from_process_name(process_name, self.name()):
+            if sys.platform.startswith("linux"):
+                wmctrl_path = shutil.which("wmctrl")
+                if wmctrl_path:
+                    try:
+                        # use wmctrl to raise the window based on the node name (this doesn't work well with window having multiple tabs)
+                        subprocess.run([wmctrl_path, "-a", self.name()], check=True, env=os.environ)
+                        return True
+                    except subprocess.CalledProcessError:
+                        log.debug("Could not find window title '{}' to bring it to front".format(self.name()))
+                    except OSError as e:
+                        log.warning("Count not focus on terminal window: '{}'".format(e))
+            elif sys.platform.startswith("win"):
+                console_command = self.consoleCommand()
+                if console_command:
+                    process_name = console_command.split()[0]
+                    if bring_window_to_front_from_process_name(process_name, self.name()):
+                        return True
+                    else:
+                        log.debug("Could not find process name '' and window title '{}' to bring it to front".format(process_name, self.name()))
+
+                if bring_window_to_front_from_title(self.name()):
                     return True
                 else:
-                    log.debug("Could not find process name '' and window title '{}' to bring it to front".format(process_name, self.name()))
-
-            if bring_window_to_front_from_title(self.name()):
-                return True
-            else:
-                log.debug("Could not find window title '{}' to bring it to front".format(self.name()))
+                    log.debug("Could not find window title '{}' to bring it to front".format(self.name()))
         return False
 
     def importFile(self, path, source_path):
@@ -778,7 +856,7 @@ class Node(BaseNode):
 
         self.get("/files/{path}".format(path=path), self._exportFileCallback, context={"path": output_path}, raw=True)
 
-    def _exportFileCallback(self, result, error=False, raw_body=None, context={}, **kwargs):
+    def _exportFileCallback(self, result, error=False, context={}, **kwargs):
         """
         Callback for export file.
         """
@@ -786,7 +864,7 @@ class Node(BaseNode):
         if not error:
             try:
                 with open(context["path"], "wb+") as f:
-                    f.write(raw_body)
+                    f.write(result)
             except OSError as e:
                 log.error("Cannot export file '{}': {}".format(context["path"], e))
 
@@ -806,7 +884,7 @@ class Node(BaseNode):
                      raw=True)
         return True
 
-    def _exportConfigsToDirectoryCallback(self, result, error=False, raw_body=None, context={}, **kwargs):
+    def _exportConfigsToDirectoryCallback(self, result, error=False, context={}, **kwargs):
         """
         Callback for exportConfigsToDirectory.
 
@@ -825,7 +903,7 @@ class Node(BaseNode):
         try:
             with open(config_path, "wb") as f:
                 log.debug("saving {} config to {}".format(self.name(), config_path))
-                f.write(raw_body)
+                f.write(result)
         except OSError as e:
             self.error_signal.emit(self.id(), "could not export config to {}: {}".format(config_path, e))
 
@@ -866,32 +944,6 @@ class Node(BaseNode):
         if error and "message" in result:
             log.error("Error while import config: {}".format(result["message"]))
 
-    @staticmethod
-    def isValidRfc1123Hostname(hostname):
-        """
-        Validate a hostname according to RFC 1123
-
-        Each element of the hostname must be from 1 to 63 characters long
-        and the entire hostname, including the dots, can be at most 253
-        characters long.  Valid characters for hostnames are ASCII
-        letters from a to z, the digits from 0 to 9, and the hyphen (-).
-        A hostname may not start with a hyphen.
-        """
-
-        if hostname[-1] == ".":
-            hostname = hostname[:-1]  # strip exactly one dot from the right, if present
-
-        if len(hostname) > 253:
-            return False
-
-        labels = hostname.split(".")
-
-        # the TLD must be not all-numeric
-        if re.match(r"[0-9]+$", labels[-1]):
-            return False
-
-        allowed = re.compile(r"(?!-)[a-zA-Z0-9-]{1,63}(?<!-)$")
-        return all(allowed.match(label) for label in labels)
 
     @staticmethod
     def onCloseOptions():

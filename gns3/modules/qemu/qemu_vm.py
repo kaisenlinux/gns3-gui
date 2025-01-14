@@ -45,7 +45,6 @@ class QemuVM(Node):
         self._linked_clone = True
 
         qemu_vm_settings = {"usage": "",
-                            "qemu_path": "",
                             "hda_disk_image": "",
                             "hdb_disk_image": "",
                             "hdc_disk_image": "",
@@ -68,16 +67,17 @@ class QemuVM(Node):
                             "cpus": QEMU_VM_SETTINGS["cpus"],
                             "console_type": QEMU_VM_SETTINGS["console_type"],
                             "console_auto_start": QEMU_VM_SETTINGS["console_auto_start"],
+                            "aux_type": QEMU_VM_SETTINGS["aux_type"],
                             "adapters": QEMU_VM_SETTINGS["adapters"],
                             "custom_adapters": QEMU_VM_SETTINGS["custom_adapters"],
                             "adapter_type": QEMU_VM_SETTINGS["adapter_type"],
                             "mac_address": QEMU_VM_SETTINGS["mac_address"],
-                            "legacy_networking": QEMU_VM_SETTINGS["legacy_networking"],
                             "replicate_network_connection_state": QEMU_VM_SETTINGS["replicate_network_connection_state"],
                             "tpm": QEMU_VM_SETTINGS["tpm"],
                             "uefi": QEMU_VM_SETTINGS["uefi"],
                             "create_config_disk": QEMU_VM_SETTINGS["create_config_disk"],
                             "platform": QEMU_VM_SETTINGS["platform"],
+                            "qemu_path": "",
                             "on_close": QEMU_VM_SETTINGS["on_close"],
                             "cpu_throttling": QEMU_VM_SETTINGS["cpu_throttling"],
                             "process_priority": QEMU_VM_SETTINGS["process_priority"],
@@ -92,16 +92,24 @@ class QemuVM(Node):
 
         self.settings().update(qemu_vm_settings)
 
-    def resizeDiskImage(self, drive_name, size, callback):
+    def createDiskImage(self, disk_name, options, callback):
         """
-        Resize a disk image allocated to the VM.
+        Create a disk image attached to the VM.
 
         :param callback: callback for the reply from the server
         """
 
-        params = {"drive_name": drive_name,
-                  "extend": size}
-        self.post("/resize_disk", callback, body=params)
+        self.post(f"/qemu/disk_image/{disk_name}", callback, body=options)
+
+    def resizeDiskImage(self, disk_name, size, callback):
+        """
+        Resize a disk image attached to the VM.
+
+        :param callback: callback for the reply from the server
+        """
+
+        params = {"extend": size}
+        self.put(f"/qemu/disk_image/{disk_name}", callback, body=params)
 
     def info(self):
         """
@@ -112,9 +120,10 @@ class QemuVM(Node):
 
         info = """QEMU VM {name} is {state}
   Running on server {host} with port {port}
-  Local ID is {id} and server ID is {node_id}
+  Local ID is {id} and node ID is {node_id}
   Number of processors is {cpus} and amount of memory is {ram}MB
   Console is on port {console} and type is {console_type}
+  Auxiliary console is on port {aux} and type is {aux_type}
 """.format(name=self.name(),
            id=self.id(),
            node_id=self._node_id,
@@ -124,7 +133,9 @@ class QemuVM(Node):
            cpus=self._settings["cpus"],
            ram=self._settings["ram"],
            console=self._settings["console"],
-           console_type=self._settings["console_type"])
+           console_type=self._settings["console_type"],
+           aux=self._settings["aux"],
+           aux_type=self._settings["aux_type"])
 
         port_info = ""
         for port in self._ports:
@@ -157,6 +168,15 @@ class QemuVM(Node):
 
         return None
 
+    def auxConsole(self):
+        """
+        Returns the console port for this Docker VM instance.
+
+        :returns: port (integer)
+        """
+
+        return self._settings["aux"]
+
     def configPage(self):
         """
         Returns the configuration page widget to be used by the node properties dialog.
@@ -166,18 +186,6 @@ class QemuVM(Node):
 
         from .pages.qemu_vm_configuration_page import QemuVMConfigurationPage
         return QemuVMConfigurationPage
-
-    @staticmethod
-    def validateHostname(hostname):
-        """
-        Checks if the hostname is valid.
-
-        :param hostname: hostname to check
-
-        :returns: boolean
-        """
-
-        return QemuVM.isValidRfc1123Hostname(hostname)
 
     @staticmethod
     def defaultSymbol():

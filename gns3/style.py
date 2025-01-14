@@ -47,10 +47,15 @@ class Style:
         Sets the legacy GUI style.
         """
 
+        graphics_view = self._mw.uiGraphicsView
+        if hasattr(graphics_view, 'resetGridColors'):
+            graphics_view.resetGridColors()
+
         self._mw.setStyleSheet("")
         self._mw.uiNewProjectAction.setIcon(QtGui.QIcon(":/icons/new-project.svg"))
         self._mw.uiOpenProjectAction.setIcon(QtGui.QIcon(":/icons/open.svg"))
-        self._mw.uiOpenApplianceAction.setIcon(QtGui.QIcon(":/icons/open.svg"))
+        self._mw.uiOpenApplianceAction.setIcon(QtGui.QIcon(":/icons/applications.svg"))
+        self._mw.uiImageManagementAction.setIcon(QtGui.QIcon(":/icons/open.svg"))
         self._mw.uiNewTemplateAction.setIcon(QtGui.QIcon(":/icons/plus.svg"))
         self._mw.uiSaveProjectAsAction.setIcon(QtGui.QIcon(":/icons/save-as.svg"))
         self._mw.uiEditProjectAction.setIcon(QtGui.QIcon(":/icons/edit.svg"))
@@ -99,10 +104,15 @@ class Style:
         Sets the classic GUI style.
         """
 
+        graphics_view = self._mw.uiGraphicsView
+        if hasattr(graphics_view, 'resetGridColors'):
+            graphics_view.resetGridColors()
+
         self._mw.setStyleSheet("")
         self._mw.uiNewProjectAction.setIcon(self._getStyleIcon(":/classic_icons/new-project.svg", ":/classic_icons/new-project-hover.svg"))
         self._mw.uiOpenProjectAction.setIcon(self._getStyleIcon(":/classic_icons/open.svg", ":/classic_icons/open-hover.svg"))
         self._mw.uiOpenApplianceAction.setIcon(self._getStyleIcon(":/classic_icons/open.svg", ":/classic_icons/open-hover.svg"))
+        self._mw.uiImageManagementAction.setIcon(self._getStyleIcon(":/classic_icons/preferences.svg", ":/classic_icons/preferences-hover.svg"))
         self._mw.uiNewTemplateAction.setIcon(self._getStyleIcon(":/classic_icons/plus.svg", ":/classic_icons/plus-hover.svg"))
         self._mw.uiSaveProjectAsAction.setIcon(self._getStyleIcon(":/classic_icons/save-as-project.svg", ":/classic_icons/save-as-project-hover.svg"))
         self._mw.uiEditProjectAction.setIcon(self._getStyleIcon(":/classic_icons/edit.svg", ":/classic_icons/edit-hover.svg"))
@@ -155,6 +165,10 @@ class Style:
         Sets the charcoal GUI style.
         """
 
+        graphics_view = self._mw.uiGraphicsView
+        if hasattr(graphics_view, 'resetGridColors'):
+            graphics_view.resetGridColors()
+
         style_file = QtCore.QFile(":/styles/charcoal.css")
         style_file.open(QtCore.QFile.ReadOnly)
         style = QtCore.QTextStream(style_file).readAll()
@@ -165,6 +179,7 @@ class Style:
         self._mw.uiNewProjectAction.setIcon(self._getStyleIcon(":/charcoal_icons/new-project.svg", ":/charcoal_icons/new-project-hover.svg"))
         self._mw.uiOpenProjectAction.setIcon(self._getStyleIcon(":/charcoal_icons/open.svg", ":/charcoal_icons/open-hover.svg"))
         self._mw.uiOpenApplianceAction.setIcon(self._getStyleIcon(":/charcoal_icons/open.svg", ":/charcoal_icons/open-hover.svg"))
+        self._mw.uiImageManagementAction.setIcon(self._getStyleIcon(":/charcoal_icons/preferences.svg", ":/charcoal_icons/preferences-hover.svg"))
         self._mw.uiNewTemplateAction.setIcon(self._getStyleIcon(":/charcoal_icons/plus.svg", ":/charcoal_icons/plus-hover.svg"))
         self._mw.uiSaveProjectAsAction.setIcon(self._getStyleIcon(":/charcoal_icons/save-as-project.svg", ":/charcoal_icons/save-as-project-hover.svg"))
         self._mw.uiEditProjectAction.setIcon(self._getStyleIcon(":/charcoal_icons/edit.svg", ":/charcoal_icons/edit-hover.svg"))

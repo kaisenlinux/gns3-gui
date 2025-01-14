@@ -38,7 +38,8 @@ class VirtualBoxVMWizard(VMWizard, Ui_VirtualBoxVMWizard):
 
         super().__init__(virtualbox_vms, parent)
         self._virtualbox_vms = virtualbox_vms
-        self.setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(":/icons/virtualbox.png"))
+        self._allow_dynamic_compute_allocation = False
+        self.setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(":/symbols/vbox_guest.svg"))
 
     def validateCurrentPage(self):
         """
@@ -59,7 +60,13 @@ class VirtualBoxVMWizard(VMWizard, Ui_VirtualBoxVMWizard):
         super().initializePage(page_id)
         if self.page(page_id) == self.uiVirtualBoxWizardPage:
             self.uiVMListComboBox.clear()
-            Controller.instance().getCompute("/virtualbox/vms", self._compute_id, self._getVirtualBoxVMsFromServerCallback, progressText="Listing VirtualBox VMs...")
+            Controller.instance().getCompute(
+                "/virtualbox/vms",
+                self._compute_id,
+                self._getVirtualBoxVMsFromServerCallback,
+                progress_text="Listing VirtualBox VMs...",
+                wait=True
+            )
 
     def _getVirtualBoxVMsFromServerCallback(self, result, error=False, **kwargs):
         """

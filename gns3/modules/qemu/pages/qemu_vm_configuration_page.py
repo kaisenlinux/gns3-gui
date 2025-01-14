@@ -51,6 +51,8 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         self._settings = None
         self._custom_adapters = []
 
+        self.uiQemuPlatformComboBox.addItems(Qemu.getQemuPlatforms())
+
         self.uiBootPriorityComboBox.addItem("HDD", "c")
         self.uiBootPriorityComboBox.addItem("CD/DVD-ROM", "d")
         self.uiBootPriorityComboBox.addItem("Network", "n")
@@ -88,7 +90,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         self.uiInitrdToolButton.clicked.connect(self._initrdBrowserSlot)
         self.uiKernelImageToolButton.clicked.connect(self._kernelImageBrowserSlot)
         self.uiActivateCPUThrottlingCheckBox.stateChanged.connect(self._cpuThrottlingChangedSlot)
-        self.uiLegacyNetworkingCheckBox.stateChanged.connect(self._legacyNetworkingChangedSlot)
         self.uiCustomAdaptersConfigurationPushButton.clicked.connect(self._customAdaptersConfigurationSlot)
         self.uiCreateConfigDiskCheckBox.stateChanged.connect(self._createConfigDiskChangedSlot)
 
@@ -103,7 +104,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         # Supported NIC models: e1000, e1000-82544gc, e1000-82545em, e1000e, i82550, i82551, i82557a, i82557b, i82557c, i82558a
         # i82558b, i82559a, i82559b, i82559c, i82559er, i82562, i82801, igb, ne2k_pci, pcnet, rocker, rtl8139, virtio-net-pci, vmxnet3
         # This list can be retrieved using "qemu-system-x86_64 -nic model=?" or "qemu-system-x86_64 -device help"
-        self._legacy_devices = ("e1000", "i82551", "i82557b", "i82559er", "ne2k_pci", "pcnet", "rtl8139", "virtio")
         self._qemu_network_devices = OrderedDict([("e1000", "Intel Gigabit Ethernet"),
                                                   ("e1000-82544gc", "Intel 82544GC Gigabit Ethernet"),
                                                   ("e1000-82545em", "Intel 82545EM Gigabit Ethernet"),
@@ -126,7 +126,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
                                                   ("pcnet", "AMD PCNet Ethernet"),
                                                   ("rocker", "Rocker L2 switch device"),
                                                   ("rtl8139", "Realtek 8139 Ethernet"),
-                                                  ("virtio", "Legacy paravirtualized Network I/O"),
                                                   ("virtio-net-pci", "Paravirtualized Network I/O"),
                                                   ("vmxnet3", "VMWare Paravirtualized Ethernet v3")])
 
@@ -145,20 +144,14 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiSymbolLineEdit.setText(new_symbol_path)
             self.uiSymbolLineEdit.setToolTip('<img src="{}"/>'.format(new_symbol_path))
 
-    def _refreshQemuNetworkDevices(self, legacy_networking=False):
+    def _refreshQemuNetworkDevices(self,):
         """
         Refreshes the Qemu network device list.
 
-        :param legacy_networking: True if legacy networking is enabled.
         """
 
         self.uiAdapterTypesComboBox.clear()
         for device_name, device_description in self._qemu_network_devices.items():
-            if legacy_networking and device_name not in self._legacy_devices:
-                continue
-            # special case for virtio legacy networking
-            if not legacy_networking and device_name == "virtio":
-                continue
             self.uiAdapterTypesComboBox.addItem("{} ({})".format(device_description, device_name), device_name)
 
     @staticmethod
@@ -245,24 +238,64 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiCdromImageLineEdit.setText(path)
 
     def _hdaDiskImageCreateSlot(self):
-        create_dialog = QemuImageWizard(self, self._compute_id, self.uiNameLineEdit.text() + '-hda')
-        if QtWidgets.QDialog.Accepted == create_dialog.exec_():
-            self.uiHdaDiskImageLineEdit.setText(create_dialog.uiLocationLineEdit.text())
+
+        if self._node:
+            create_dialog = QemuImageWizard(self, self._node, self.uiNameLineEdit.text() + '-hda')
+            if QtWidgets.QDialog.Accepted == create_dialog.exec_():
+                self.uiHdaDiskImageLineEdit.setText(create_dialog.uiDiskFilenameLineEdit.text())
 
     def _hdbDiskImageCreateSlot(self):
-        create_dialog = QemuImageWizard(self, self._compute_id, self.uiNameLineEdit.text() + '-hdb')
-        if QtWidgets.QDialog.Accepted == create_dialog.exec_():
-            self.uiHdbDiskImageLineEdit.setText(create_dialog.uiLocationLineEdit.text())
+
+        if self._node:
+            create_dialog = QemuImageWizard(self, self._node, self.uiNameLineEdit.text() + '-hdb')
+            if QtWidgets.QDialog.Accepted == create_dialog.exec_():
+                self.uiHdbDiskImageLineEdit.setText(create_dialog.uiDiskFilenameLineEdit.text())
 
     def _hdcDiskImageCreateSlot(self):
-        create_dialog = QemuImageWizard(self, self._compute_id, self.uiNameLineEdit.text() + '-hdc')
-        if QtWidgets.QDialog.Accepted == create_dialog.exec_():
-            self.uiHdcDiskImageLineEdit.setText(create_dialog.uiLocationLineEdit.text())
+
+        if self._node:
+            create_dialog = QemuImageWizard(self, self._node, self.uiNameLineEdit.text() + '-hdc')
+            if QtWidgets.QDialog.Accepted == create_dialog.exec_():
+                self.uiHdcDiskImageLineEdit.setText(create_dialog.uiDiskFilenameLineEdit.text())
 
     def _hddDiskImageCreateSlot(self):
-        create_dialog = QemuImageWizard(self, self._compute_id, self.uiNameLineEdit.text() + '-hdd')
-        if QtWidgets.QDialog.Accepted == create_dialog.exec_():
-            self.uiHddDiskImageLineEdit.setText(create_dialog.uiLocationLineEdit.text())
+
+        if self._node:
+            create_dialog = QemuImageWizard(self, self._node, self.uiNameLineEdit.text() + '-hdd')
+            if QtWidgets.QDialog.Accepted == create_dialog.exec_():
+                self.uiHddDiskImageLineEdit.setText(create_dialog.uiDiskFilenameLineEdit.text())
+
+    def _hdaDiskImageResizeSlot(self):
+
+        disk_image_filename = self.uiHdaDiskImageLineEdit.text().strip()
+        if disk_image_filename:
+            size, ok = QtWidgets.QInputDialog.getInt(self, "HDA disk size", "Increase hda disk size in MB:", 10000, 1, 1000000000, 1000)
+            if ok and self._node:
+                self._node.resizeDiskImage(disk_image_filename, size, self._resizeDiskImageCallback)
+
+    def _hdbDiskImageResizeSlot(self):
+
+        disk_image_filename = self.uiHdbDiskImageLineEdit.text()
+        if disk_image_filename:
+            size, ok = QtWidgets.QInputDialog.getInt(self, "HDB disk size", "Increase hdb disk size in MB:", 10000, 1, 1000000000, 1000)
+            if ok and self._node:
+                self._node.resizeDiskImage(disk_image_filename, size, self._resizeDiskImageCallback)
+
+    def _hdcDiskImageResizeSlot(self):
+
+        disk_image_filename = self.uiHdcDiskImageLineEdit.text()
+        if disk_image_filename:
+            size, ok = QtWidgets.QInputDialog.getInt(self, "HDC disk size", "Increase hdc disk size in MB:", 10000, 1, 1000000000, 1000)
+            if ok and self._node:
+                self._node.resizeDiskImage(disk_image_filename, size, self._resizeDiskImageCallback)
+
+    def _hddDiskImageResizeSlot(self):
+
+        disk_image_filename = self.uiHddDiskImageLineEdit.text()
+        if disk_image_filename:
+            size, ok = QtWidgets.QInputDialog.getInt(self, "HDD disk size", "Increase hdd disk size in MB:", 10000, 1, 1000000000, 1000)
+            if ok and self._node:
+                self._node.resizeDiskImage(disk_image_filename, size, self._resizeDiskImageCallback)
 
     def _resizeDiskImageCallback(self, result, error=False, **kwargs):
         """
@@ -277,25 +310,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         else:
             QtWidgets.QMessageBox.information(self, "Disk image", "The disk has been resized")
 
-    def _hdaDiskImageResizeSlot(self):
-        size, ok = QtWidgets.QInputDialog.getInt(self, "HDA disk size", "Increase hda disk size in MB:", 10000, 1, 1000000000, 1000)
-        if ok and self._node:
-            self._node.resizeDiskImage("hda", size, self._resizeDiskImageCallback)
-
-    def _hdbDiskImageResizeSlot(self):
-        size, ok = QtWidgets.QInputDialog.getInt(self, "HDB disk size", "Increase hdb disk size in MB:", 10000, 1, 1000000000, 1000)
-        if ok and self._node:
-            self._node.resizeDiskImage("hdb", size, self._resizeDiskImageCallback)
-
-    def _hdcDiskImageResizeSlot(self):
-        size, ok = QtWidgets.QInputDialog.getInt(self, "HDC disk size", "Increase hdc disk size in MB:", 10000, 1, 1000000000, 1000)
-        if ok and self._node:
-            self._node.resizeDiskImage("hdc", size, self._resizeDiskImageCallback)
-
-    def _hddDiskImageResizeSlot(self):
-        size, ok = QtWidgets.QInputDialog.getInt(self, "HDD disk size", "Increase hdd disk size in MB:", 10000, 1, 1000000000, 1000)
-        if ok and self._node:
-            self._node.resizeDiskImage("hdd", size, self._resizeDiskImageCallback)
 
     def _initrdBrowserSlot(self):
         """
@@ -317,40 +331,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiKernelImageLineEdit.clear()
             self.uiKernelImageLineEdit.setText(path)
 
-    def _getQemuBinariesFromServerCallback(self, result, error=False, qemu_path=None, **kwargs):
-        """
-        Callback for getQemuBinariesFromServer.
-
-        :param result: server response
-        :param error: indicates an error (boolean)
-        """
-
-        if sip_is_deleted(self.uiQemuListComboBox) or sip_is_deleted(self):
-            return
-
-        if error:
-            QtWidgets.QMessageBox.critical(self, "Qemu binaries", "{}".format(result["message"]))
-        else:
-            self.uiQemuListComboBox.clear()
-            for qemu in result:
-                if qemu["version"]:
-                    self.uiQemuListComboBox.addItem("{path} (v{version})".format(path=qemu["path"], version=qemu["version"]), qemu["path"])
-                else:
-                    self.uiQemuListComboBox.addItem("{path}".format(path=qemu["path"]), qemu["path"])
-
-        if qemu_path and "/" not in qemu_path and "\\" not in qemu_path:
-            self.uiQemuListComboBox.addItem("{path}".format(path=qemu_path), qemu_path)
-
-        index = self.uiQemuListComboBox.findData("{path}".format(path=qemu_path))
-        if index != -1:
-            self.uiQemuListComboBox.setCurrentIndex(index)
-        else:
-            index = self.uiQemuListComboBox.findData("{path}".format(path=os.path.basename(qemu_path)), flags=QtCore.Qt.MatchEndsWith)
-            self.uiQemuListComboBox.setCurrentIndex(index)
-            if index == -1:
-                QtWidgets.QMessageBox.warning(self, "Qemu","Could not find '{}' in the Qemu binaries list, please select a new binary".format(qemu_path))
-            else:
-                QtWidgets.QMessageBox.warning(self, "Qemu","Could not find '{}' in the Qemu binaries list, an alternative path has been selected".format(qemu_path))
 
     def _cpuThrottlingChangedSlot(self, state):
         """
@@ -361,16 +341,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiCPUThrottlingSpinBox.setEnabled(True)
         else:
             self.uiCPUThrottlingSpinBox.setEnabled(False)
-
-    def _legacyNetworkingChangedSlot(self, state):
-        """
-        Slot to enable or not legacy networking.
-        """
-
-        if state:
-            self._refreshQemuNetworkDevices(legacy_networking=True)
-        else:
-            self._refreshQemuNetworkDevices()
 
     def _createConfigDiskChangedSlot(self, state):
         """
@@ -420,16 +390,7 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             QtWidgets.QMessageBox.critical(self, "Invalid format", "Invalid port name format")
             return
 
-        if self.uiLegacyNetworkingCheckBox.isChecked():
-            network_devices = {}
-            for nic, desc in self._qemu_network_devices.items():
-                if nic in self._legacy_devices:
-                    network_devices[nic] = desc
-        else:
-            network_devices = self._qemu_network_devices.copy()
-            # special case for virtio legacy networking
-            network_devices.pop("virtio")
-
+        network_devices = self._qemu_network_devices.copy()
         dialog = CustomAdaptersConfigurationDialog(ports, self._custom_adapters, default_adapter, network_devices, base_mac_address, parent=self)
         dialog.show()
         dialog.exec_()
@@ -450,12 +411,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         else:
             self._compute_id = settings["compute_id"]
             self._node = None
-
-        if self._compute_id is None:
-            QtWidgets.QMessageBox.warning(self, "Qemu", "Server {} is not running, cannot retrieve the QEMU binaries list".format(settings["compute_id"]))
-        else:
-            callback = qpartial(self._getQemuBinariesFromServerCallback, qemu_path=settings["qemu_path"])
-            Qemu.instance().getQemuBinariesFromServer(self._compute_id, callback)
 
         if not group:
             # set the device name
@@ -513,6 +468,11 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiPortSegmentSizeSpinBox.setValue(settings["port_segment_size"])
             self.uiFirstPortNameLineEdit.setText(settings["first_port_name"])
 
+            self.uiHdaDiskImageCreateToolButton.hide()
+            self.uiHdbDiskImageCreateToolButton.hide()
+            self.uiHdcDiskImageCreateToolButton.hide()
+            self.uiHddDiskImageCreateToolButton.hide()
+
             self.uiHdaDiskImageResizeToolButton.hide()
             self.uiHdbDiskImageResizeToolButton.hide()
             self.uiHdcDiskImageResizeToolButton.hide()
@@ -533,6 +493,10 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             self.uiFirstPortNameLabel.hide()
             self.uiFirstPortNameLineEdit.hide()
 
+        index = self.uiQemuPlatformComboBox.findText(settings["platform"])
+        if index != -1:
+            self.uiQemuPlatformComboBox.setCurrentIndex(index)
+
         index = self.uiBootPriorityComboBox.findData(settings["boot_priority"])
         if index != -1:
             self.uiBootPriorityComboBox.setCurrentIndex(index)
@@ -541,12 +505,14 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         if index != -1:
             self.uiConsoleTypeComboBox.setCurrentIndex(index)
 
+        index = self.uiAuxTypeComboBox.findText(settings["aux_type"])
+        if index != -1:
+            self.uiAuxTypeComboBox.setCurrentIndex(index)
+
         self.uiConsoleAutoStartCheckBox.setChecked(settings["console_auto_start"])
         self.uiKernelCommandLineEdit.setText(settings["kernel_command_line"])
         self.uiAdaptersSpinBox.setValue(settings["adapters"])
         self._custom_adapters = settings["custom_adapters"].copy()
-
-        self.uiLegacyNetworkingCheckBox.setChecked(settings["legacy_networking"])
         self.uiReplicateNetworkConnectionStateCheckBox.setChecked(settings["replicate_network_connection_state"])
 
         # load the MAC address setting
@@ -577,6 +543,7 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         index = self.uiProcessPriorityComboBox.findText(settings["process_priority"], QtCore.Qt.MatchFixedString)
         if index != -1:
             self.uiProcessPriorityComboBox.setCurrentIndex(index)
+        self.uiQemuPathLineEdit.setText(settings["qemu_path"])
         self.uiQemuOptionsLineEdit.setText(settings["options"])
         self.uiUsageTextEdit.setPlainText(settings["usage"])
         self.uiTPMCheckBox.setChecked(settings["tpm"])
@@ -658,17 +625,11 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
             settings["port_segment_size"] = port_segment_size
             settings["first_port_name"] = first_port_name
 
-        if self.uiQemuListComboBox.currentIndex() != -1:
-            qemu_path = self.uiQemuListComboBox.itemData(self.uiQemuListComboBox.currentIndex())
-            settings["qemu_path"] = qemu_path
-        else:
-            QtWidgets.QMessageBox.critical(self, "Qemu binary", "Please select a Qemu binary")
-            if node:
-                raise ConfigurationError()
-
+        settings["platform"] = self.uiQemuPlatformComboBox.itemText(self.uiQemuPlatformComboBox.currentIndex())
         settings["boot_priority"] = self.uiBootPriorityComboBox.itemData(self.uiBootPriorityComboBox.currentIndex())
         settings["console_type"] = self.uiConsoleTypeComboBox.currentText().lower()
         settings["console_auto_start"] = self.uiConsoleAutoStartCheckBox.isChecked()
+        settings["aux_type"] = self.uiAuxTypeComboBox.currentText().lower()
         settings["adapter_type"] = self.uiAdapterTypesComboBox.itemData(self.uiAdapterTypesComboBox.currentIndex())
         settings["kernel_command_line"] = self.uiKernelCommandLineEdit.text()
 
@@ -682,7 +643,6 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
                     raise ConfigurationError()
 
         settings["adapters"] = adapters
-        settings["legacy_networking"] = self.uiLegacyNetworkingCheckBox.isChecked()
         settings["replicate_network_connection_state"] = self.uiReplicateNetworkConnectionStateCheckBox.isChecked()
         settings["custom_adapters"] = self._custom_adapters.copy()
         settings["on_close"] = self.uiOnCloseComboBox.itemData(self.uiOnCloseComboBox.currentIndex())
@@ -693,6 +653,7 @@ class QemuVMConfigurationPage(QtWidgets.QWidget, Ui_QemuVMConfigPageWidget):
         else:
             settings["cpu_throttling"] = 0
         settings["process_priority"] = self.uiProcessPriorityComboBox.currentText().lower()
+        settings["qemu_path"] = self.uiQemuPathLineEdit.text().strip()
         settings["options"] = self.uiQemuOptionsLineEdit.text()
         settings["usage"] = self.uiUsageTextEdit.toPlainText()
         settings["tpm"] = self.uiTPMCheckBox.isChecked()

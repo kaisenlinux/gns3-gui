@@ -88,7 +88,15 @@ class IOUDevicePreferencesPage(QtWidgets.QWidget, Ui_IOUDevicePreferencesPageWid
         QtWidgets.QTreeWidgetItem(section_item, ["Template ID:", iou_device.get("template_id", "none")])
         QtWidgets.QTreeWidgetItem(section_item, ["Default name format:", iou_device["default_name_format"]])
         try:
-            QtWidgets.QTreeWidgetItem(section_item, ["Server:", ComputeManager.instance().getCompute(iou_device["compute_id"]).name()])
+            compute_id = iou_device.get("compute_id")
+            if compute_id:
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", ComputeManager.instance().getCompute(compute_id).name()])
+            else:
+                if Controller.instance().settings()["dynamic_compute_allocation"]:
+                    msg = "Dynamically allocated by the controller"
+                else:
+                    msg = "Manually chosen"
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", msg])
         except KeyError:
             # Compute doesn't exists
             pass
@@ -291,8 +299,8 @@ class IOUDevicePreferencesPage(QtWidgets.QWidget, Ui_IOUDevicePreferencesPageWid
         path, _ = QtWidgets.QFileDialog.getOpenFileName(parent,
                                                         "Select an IOU image",
                                                         cls._default_images_dir,
-                                                        "All file (*);;IOU image (*.bin *.image)",
-                                                        "IOU image (*.bin *.image)")
+                                                        "All file (*);;IOU image (*.bin *.image *.iol)",
+                                                        "IOU image (*.bin *.image *.iol)")
 
         if not path:
             return

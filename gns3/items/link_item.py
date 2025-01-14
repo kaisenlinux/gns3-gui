@@ -159,6 +159,12 @@ class LinkItem(QtWidgets.QGraphicsPathItem):
         """
         self._link.deleteLink()
 
+    def reset(self):
+        """
+        Reset this link
+        """
+        self._link.resetLink()
+
     def link(self):
         """
         Returns the link attached to this link item.
@@ -282,6 +288,12 @@ class LinkItem(QtWidgets.QGraphicsPathItem):
             resume_action.triggered.connect(self._suspendActionSlot)
             menu.addAction(resume_action)
 
+        # reset
+        reset_action = QtWidgets.QAction("Reset", menu)
+        reset_action.setIcon(get_icon('reload.svg'))
+        reset_action.triggered.connect(self._resetActionSlot)
+        menu.addAction(reset_action)
+
         # style
         style_action = QtWidgets.QAction("Style", menu)
         style_action.setIcon(get_icon("node_conception.svg"))
@@ -339,6 +351,14 @@ class LinkItem(QtWidgets.QGraphicsPathItem):
         if event.key() == QtCore.Qt.Key_Delete or event.key() == QtCore.Qt.Key_Backspace:
             self._deleteActionSlot()
             return
+
+    def _resetActionSlot(self):
+        """
+        Slot to receive events from the reset action in the
+        contextual menu.
+        """
+
+        self.reset()
 
     def _deleteActionSlot(self):
         """

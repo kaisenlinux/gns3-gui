@@ -76,39 +76,6 @@ def sip_is_deleted(obj):
     return False
 
 
-class QFileDialog(OldFileDialog):
-
-    @staticmethod
-    def getExistingDirectory(parent=None, caption='', dir='', options=OldFileDialog.ShowDirsOnly):
-        path = OldFileDialog.getExistingDirectory(parent, caption, dir, options)
-        if path:
-            path = os.path.normpath(path)
-        return path
-
-    @staticmethod
-    def getOpenFileName(parent=None, caption='', directory='', filter='', selectedFilter='', options=OldFileDialog.Options()):
-        path, _ = OldFileDialog.getOpenFileName(parent, caption, directory, filter, selectedFilter, options)
-        if path:
-            path = os.path.normpath(path)
-        return path, _
-
-    @staticmethod
-    def getOpenFileNames(parent=None, caption='', directory='', filter='', selectedFilter='', options=OldFileDialog.Options()):
-        path, _ = OldFileDialog.getOpenFileNames(parent, caption, directory, filter, selectedFilter, options)
-        if path:
-            path = os.path.normpath(path)
-        return path, _
-
-    @staticmethod
-    def getSaveFileName(parent=None, caption='', directory='', filter='', selectedFilter='', options=OldFileDialog.Options()):
-        path, _ = OldFileDialog.getSaveFileName(parent, caption, directory, filter, selectedFilter, options)
-        if path:
-            path = os.path.normpath(path)
-        return path, _
-
-QtWidgets.QFileDialog = QFileDialog
-
-
 class LogQMessageBox(QtWidgets.QMessageBox):
     """
     Replace the standard message box for logging errors to console. And
@@ -145,12 +112,11 @@ class LogQMessageBox(QtWidgets.QMessageBox):
         Return a logger in the context of the caller
         in order to have the correct information in the log
         """
-        if sys.version_info < (3, 5):
-            return logging.getLogger('qt')
+
         try:
             caller = inspect.stack()[2]
             location = "{}:{}".format(os.path.basename(caller.filename), caller.lineno)
-        except:
+        except Exception:
             # If anything go wrong during the format return the standard logger
             # for unknonw reason sometimes we don't have the caller info
             return logging.getLogger('qt')

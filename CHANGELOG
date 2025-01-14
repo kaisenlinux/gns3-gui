@@ -1,5 +1,103 @@
 # Change Log
 
+## 3.0.2 03/01/2025
+
+* Add button to create templates based on images that are not used by any yet.
+* Add "prune" images button in image management dialog.
+* Use the controller image endpoint to install appliances
+* Drop Python 3.8
+* Add image info tooltip in image management dialog.
+* Upgrade dependencies
+* Apply grid color via css property
+
+## 3.0.1 27/12/2024
+
+* Fix issue when image is already on the local server. Fixes https://github.com/GNS3/gns3-gui/issues/3678
+* Fix image uploading when image name differs with the image name recorded in the appliance. Fixes https://github.com/GNS3/gns3-gui/issues/3682
+* Fix Linux Mint default terminal configuration
+
+## 3.0.0 20/12/2024
+
+* Change title of QMessageBox
+
+## 2.2.52 02/12/2024
+
+* Add iol extension filter. Ref #3664
+* Remove maximum 64GB RAM limitation for QEMU VMs. Fixes #3658
+* Bring to front support for consoles on Linux.
+* Relax setuptools requirement to allow for easier Debian packaging on Ubuntu Focal & Jammy
+
+## 3.0.0rc2 20/11/2024
+
+* Remove maximum 64GB RAM limitation for QEMU VMs. Fixes #3658
+* Fix GUI connection to server.
+* Bring to front support for consoles on Linux.
+* Relax setuptools requirement to allow for easier Debian packaging on Ubuntu Focal & Jammy
+* Do not include tokens in notification logs
+* Python 3.13 support
+
+
+## 2.2.51 07/11/2024
+
+* Python 3.13 support
+* Upgrade dependencies
+* Add keyboard shortcut for Add Link
+
+## 2.2.50 21/10/2024
+
+* Fix issue when pid file contains invalid data
+* Add comment to indicate sentry-sdk is optional. Ref https://github.com/GNS3/gns3-server/issues/2423
+* Improve information provided when uploading invalid appliance image. Fixes #3637
+* Use "experimental features" option to force listening for HTTP notification streams. Ref #3579
+* Fix to allow packet capture on more than 6 links. Fixes #3594
+* Support for configuring MAC address in Docker containers
+* Add KRDC to pre-configured VNC console commands
+
+## 3.0.0rc1 11/08/2024
+
+* Add keep the original compute IDs option when exporting a project
+
+## 2.2.49 06/08/2024
+
+* Upgrade jsonschema and sentry-sdk packages
+* Upgrade to PyQt5 v5.15.11
+* Add shortcuts info dialog
+* Added Key Shortcuts
+
+## 2.2.48.1 12/07/2024
+
+* No changes
+
+## 2.2.48 08/07/2024
+
+* Use "experimental features" to allow bypassing hostname validation. Ref #3524
+* Update appliance_v8.json. Ref https://github.com/GNS3/gns3-registry/pull/897
+* Option to keep the compute IDs unchanged when exporting a project
+* Upgrade sentry-sdk and psutil packages
+* Switch to PyQt5 5.15.10 for macOS build
+
+## 3.0.0b3 19/05/2024
+
+* Fix updating IOS router
+* Ensure Python >= 3.8 is used in pyproject.toml
+
+## 2.2.47 15/05/2024
+
+* Remove maximum size for capture dialog. Ref #3576
+* Change sentry-sdk version
+* Upgrade aiohttp, sentry-sdk and truststore
+* Upgrade jsonschema and aiohttp
+* Drop Python 3.7
+* Remove dev requirements for Python 3.6
+* Add NAT symbols
+* Only show log message if event has "message"
+
+## 3.0.0b2 07/04/2024
+
+* Enable local controller support on Linux
+* Support for custom Qemu path in templates and nodes
+* Round CPUs value in Docker templates and VMs. Ref https://github.com/GNS3/gns3-gui/issues/3572
+
 ## 2.2.46 26/02/2024
 
 * Add GNS3 console command "env" to show what environment variables are used. Ref https://github.com/GNS3/gns3-server/issues/2306
@@ -20,6 +118,21 @@
 * Add --suppressApplicationTitle for Windows terminal. Fixes https://github.com/GNS3/gns3-gui/issues/3544
 * Upgrade sentry-sdk and aiohttp
 
+## 3.0.0b1 27/11/2023
+
+* Upgrade sentry-sdk to v1.37.1
+* Deactivate showing a percentage in progress bar. Ref #3543
+
+## 3.0.0a6 15/11/2023
+
+* Possible fix for stuck image upload. Ref https://github.com/GNS3/gns3-server/issues/2310
+* Fix timeout issue when creating Qemu disk image. Fixes https://github.com/GNS3/gns3-server/issues/2313
+* Add ISO file to images filter in Image Manager. Ref https://github.com/GNS3/gns3-server/issues/2310
+* Update custom command help and protect against double quote in project name
+* Refactor command variables support
+* Pass os.environ in Popen()
+* Add the ability to edit width and height in the style edit dialog.
+
 ## 2.2.44.1 07/11/2023
 
 * No changes
@@ -31,6 +144,77 @@
 * Add vendor_logo_url in appliance schemas. Ref https://github.com/GNS3/gns3-registry/pull/825
 * Add Qemu IGB network device
 * Add the ability to edit width and height in the style edit dialog.
+
+## 3.0.0a5 27/10/2023
+
+* Upgrade to actions/checkout@v3 and actions/setup-python@v3
+* Fix cannot change default VLAN for an access port for builtin Ethernet switch. Fixes #3528
+* Add Qemu IGB network device
+
+## 3.0.0a4 18/10/2023
+
+* New packaging relying only pyproject.toml
+* Apply Snap-to-grid of drawing items not on their center position. Fixes #3465
+* Allow computes to be dynamically or manually allocated
+* Add UEFI boot mode option for Qemu VMs
+* Adjust some values in pyproject.toml
+* Migrate to pyproject.toml
+* Mark VMware and VirtualBox support as deprecated
+* Fix RecursionError with invalid credentials. Fixes #3374
+* Allow raw images by default. Fixes https://github.com/GNS3/gns3-server/issues/2097
+* Dot not allow "no border" style for line items
+* Use "none" for solid line style in drawing items
+* Fix editing Docker container config generates exception and empty config. Fixes #3371
+* Fix cannot detect images by default when trying to upload them in the Image Manager. Fixes #3367
+* Fix unable to set VNC console resolution. Fixes  #3365
+* Set default symbol theme to "Affinity-square-blue"
+* Fix creating a custom Ethernet switch template
+* Update decorative symbols (for Wizards etc.)
+* Use generic symbol names
+* Set raw image param when uploading an image from the appliance wizard
+* Fix incorrect param in getCompute()
+* Checks for valid hostname on server side for Dynamips, IOU, Qemu and Docker nodes
+* Fix incorrect call to QProgress.setValue() with float
+* Reactivate project importation
+* Support compression levels
+* Add zstandard compression
+* Upgrade dependencies
+* Remove Qemu binary requirement
+* Use controller API to list images
+* Use new API endpoints to create/resize Qemu disk images.
+* Drop Python 3.6 support and require Python >= 3.7
+* Improvements when connecting and updating computes
+* Use current directory when searching for images. Fixes #3198
+* Refactor server settings and wizard
+* Disable local server and GNS3 VM preferences
+* Image uploading to controller and project export
+* HTTP client refactoring completed
+* Start HTTP client refactoring
+* Upgrade dependencies
+* Handle empty compute_id in preferences. Ref #3265
+* Remove direct upload to compute
+* Send JWT token in query string when connecting to websocket. Ref https://github.com/GNS3/gns3-server/pull/1992
+* Option to delete orphaned image files from disk when template is removed. Fixes #3249
+* Remove Qemu legacy networking code
+* Isolate and unisolate support. Fixes https://github.com/GNS3/gns3-gui/issues/3190
+* Support authentication using JWT tokens
+* Change Qemu disk descriptions. Fixes #3035
+* Edit only text mode config files
+* Hide config import/export when configFiles attribute is empty
+* Qemu disk interfaces must be set to "none" by default. Ref #3035
+* Do not allow image to be configured on Qemu VM secondary slave disk if create config disk option is enabled.
+* Add explicit option to automatically create or not the config disk. Off by default.
+* Auxiliary console support for Qemu. Ref #2873 Improvements for auxiliary console support for Docker and Dynamips.
+* Support to reset all console connections. Ref https://github.com/GNS3/gns3-server/issues/1619
+* Support to reset links. Fixes https://github.com/GNS3/gns3-server/issues/1620
+* Fix bug when recent files cannot be seen in the new project dialog.
+* Wait for the controller to be online before allowing actions like creating or opening a project. Fixes #2907
+* Show progress dialog immediately when connecting to server. Ref #2907
+* QEMU config disk - enable QEMU config import/export
+* Add total RAM, CPUs and disk size to servers summary as well as disk usage in percent. Fixes https://github.com/GNS3/gns3-server/issues/1532
+* Resource constraints for Docker VMs.
+* Wait for readme to be updated before exporting the project.
+* Support for "usage" for "Cloud" nodes. Fixes https://github.com/GNS3/gns3-gui/issues/2887 Allow "usage" for all builtin nodes (not exposed in Ui).
 
 ## 2.2.43 19/09/2023
 
@@ -97,6 +281,20 @@
 * Remove deprecated PuTTY option in preferences. Ref https://github.com/GNS3/gns3-gui/discussions/3415
 
 
+## 3.0.0a3 27/12/2022
+
+* Catch timeout error while updating appliance files
+* Fix RecursionError with invalid credentials. Fixes #3374
+* Allow raw images by default. Fixes https://github.com/GNS3/gns3-server/issues/2097
+* Remove deprecated PuTTY option in preferences. Ref https://github.com/GNS3/gns3-gui/discussions/3415
+* Fix "variables": [] in project file leads to unlimited increase of empty name/value pairs in GUI. Fixes #3397
+* Ignore local revision when comparing versions.
+* Make version PEP 440 compliant
+* Support for Python 3.11
+* Replace deprecated distro.linux_distribution() call
+* Add a fix for the CVE-2007-4559
+
+
 ## 2.2.35.1 10/11/2022
 
 * Re-release Web-Ui v2.2.35
@@ -110,6 +308,67 @@
 * Allow for more dependency versions at patch level
 * Replace deprecated distro.linux_distribution() call
 * Add a fix for the CVE-2007-4559
+
+## 3.0.0a2 06/09/2022
+
+* Add missing 'sys' module. Ref #3373
+* Upgrade dev dependencies
+* Dot not allow "no border" style for line items
+* Use "none" for solid line style in drawing items
+* Implement new option (Delete All) to contextual menu in "Console" dock. Fixes #3325
+* Fix editing Docker container config generates exception and empty config. Fixes #3371
+* Fix 2560x1440 resolution for Docker container
+* Fix cannot detect images by default when trying to upload them in the Image Manager. Fixes #3367
+* Fix unable to set VNC console resolution. Fixes  #3365
+
+## 3.0.0a1 04/08/2022
+
+* Set default symbol theme to "Affinity-square-blue"
+* Fix creating a custom Ethernet switch template
+* Update decorative symbols (for Wizards etc.)
+* Use generic symbol names
+* Set raw image param when uploading an image from the appliance wizard
+* Checks for valid hostname on server side for Dynamips, IOU, Qemu and Docker nodes
+* Support compression levels
+* Add zstandard compression
+* Remove Qemu binary requirement
+* Use controller API to list images
+* Use new API endpoints to create/resize Qemu disk images.
+* Image management dialog
+* Drop Python 3.6 support and require Python >= 3.7
+* Improvements when connecting and updating computes
+* Use current directory when searching for images. Fixes #3198
+* Refactor server settings and wizard
+* Disable local server and GNS3 VM preferences
+* Image uploading to controller and project export
+* HTTP client refactoring
+* Handle empty compute_id in preferences. Ref #3265
+* Remove direct upload to compute
+* Send JWT token in query string when connecting to websocket. Ref https://github.com/GNS3/gns3-server/pull/1992
+* Remove traceng code
+* Option to delete orphaned image files from disk when template is removed. Fixes #3249
+* Remove Qemu legacy networking code
+* Isolate and unisolate support. Fixes https://github.com/GNS3/gns3-gui/issues/3190
+* Support authentication using JWT tokens
+* Providing the path to create a project is now deprecated.
+* Client to use version 3 of the API.
+* Change Qemu disk descriptions. Fixes #3035
+* Edit only text mode config files
+* Hide config import/export when configFiles attribute is empty
+* Qemu disk interfaces must be set to "none" by default. Ref #3035
+* Do not allow image to be configured on Qemu VM secondary slave disk if create config disk option is enabled.
+* Add explicit option to automatically create or not the config disk. Off by default.
+* Auxiliary console support for Qemu. Ref #2873 Improvements for auxiliary console support for Docker and Dynamips.
+* Support to reset all console connections. Ref https://github.com/GNS3/gns3-server/issues/1619
+* Support to reset links. Fixes https://github.com/GNS3/gns3-server/issues/1620
+* Fix bug when recent files cannot be seen in the new project dialog.
+* Wait for the controller to be online before allowing actions like creating or opening a project. Fixes #2907
+* Show progress dialog immediately when connecting to server. Ref #2907
+* QEMU config disk - enable QEMU config import/export
+* Add total RAM, CPUs and disk size to servers summary as well as disk usage in percent. Fixes https://github.com/GNS3/gns3-server/issues/1532
+* Resource constraints for Docker VMs.
+* Support for "usage" for "Cloud" nodes. Fixes https://github.com/GNS3/gns3-gui/issues/2887 Allow "usage" for all builtin nodes (not exposed in Ui).
+* Markdown support in project Readme. Fixes #2550 #2289 Allow project README to be edited from "File->Edit project". Fixes #2829
 
 ## 2.2.34 28/08/2022
 

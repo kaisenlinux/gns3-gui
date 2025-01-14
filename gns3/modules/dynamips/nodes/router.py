@@ -50,7 +50,6 @@ class Router(Node):
 
         router_settings = {"platform": platform,
                            "usage": "",
-                           "chassis": "",
                            "image": "",
                            "image_md5sum": "",
                            "startup_config": "",
@@ -71,6 +70,7 @@ class Router(Node):
                            "console_type": "telnet",
                            "console_auto_start": False,
                            "aux": None,
+                           "aux_type": "none",
                            "mac_addr": None,
                            "system_id": "FTX0945W0MY",
                            "slot0": None,
@@ -101,11 +101,14 @@ class Router(Node):
         """
 
         log.debug("{} is requesting Idle-PC proposals".format(self.name()))
-        self.controllerHttpGet("/nodes/{node_id}/dynamips/idlepc_proposals".format(node_id=self._node_id),
-                               callback,
-                               timeout=240,
-                               context={"router": self},
-                               progressText="Computing Idle-PC values, please wait...")
+        self.controllerHttpGet(
+            "/nodes/{node_id}/dynamips/idlepc_proposals".format(node_id=self._node_id),
+            callback,
+            context={"router": self},
+            progress_text="Computing Idle-PC values, please wait...",
+            timeout=240,
+            wait=True
+        )
 
     def computeAutoIdlepc(self, callback):
         """
@@ -113,11 +116,14 @@ class Router(Node):
         """
 
         log.debug("{} is requesting Idle-PC proposals".format(self.name()))
-        self.controllerHttpGet("/nodes/{node_id}/dynamips/auto_idlepc".format(node_id=self._node_id),
-                               callback,
-                               timeout=240,
-                               context={"router": self},
-                               progressText="Computing Idle-PC values, please wait...")
+        self.controllerHttpGet(
+            "/nodes/{node_id}/dynamips/auto_idlepc".format(node_id=self._node_id),
+            callback,
+            context={"router": self},
+            progress_text="Computing Idle-PC values, please wait...",
+            timeout=240,
+            wait=True
+        )
 
     def idlepc(self):
         """
@@ -239,10 +245,11 @@ class Router(Node):
 
         info = """Router {name} is {state}
   Running on server {host} with port {port}
-  Local ID is {id} and server ID is {node_id}
+  Local ID is {id} and node ID is {node_id}
   Dynamips ID is {dynamips_id}
   Hardware is Dynamips emulated Cisco {platform} {specific_info} with {ram}MB RAM and {nvram}KB NVRAM
-  Console is on port {console} and type is {console_type}, AUX console is on port {aux}
+  Console is on port {console} and type is {console_type}
+  Auxiliary console is on port {aux} and type is {aux_type}
   IOS image is "{image_name}"
   {idlepc_info}
   PCMCIA disks: disk0 is {disk0}MB and disk1 is {disk1}MB
@@ -260,6 +267,7 @@ class Router(Node):
            console=self._settings["console"],
            console_type=self._settings["console_type"],
            aux=self._settings["aux"],
+           aux_type=self._settings["aux_type"],
            image_name=os.path.basename(self._settings["image"]),
            idlepc_info=idlepc_info,
            disk0=self._settings["disk0"],
@@ -297,23 +305,6 @@ class Router(Node):
 
         from ..pages.ios_router_configuration_page import IOSRouterConfigurationPage
         return IOSRouterConfigurationPage
-
-    @staticmethod
-    def validateHostname(hostname):
-        """
-        Checks if the hostname is valid.
-
-        :param hostname: hostname to check
-
-        :returns: boolean
-        """
-
-        # IOS names must start with a letter, end with a letter or digit, and
-        # have as interior characters only letters, digits, and hyphens.
-        # They must be 63 characters or fewer (ARPANET rules).
-        if re.search(r"""^(?!-|[0-9])[a-zA-Z0-9-]{1,63}(?<!-)$""", hostname):
-            return True
-        return False
 
     @staticmethod
     def defaultSymbol():

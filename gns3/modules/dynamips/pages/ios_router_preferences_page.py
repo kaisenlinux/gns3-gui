@@ -386,7 +386,15 @@ class IOSRouterPreferencesPage(QtWidgets.QWidget, Ui_IOSRouterPreferencesPageWid
         QtWidgets.QTreeWidgetItem(section_item, ["Template ID:", ios_router.get("template_id", "none")])
         QtWidgets.QTreeWidgetItem(section_item, ["Default name format:", ios_router["default_name_format"]])
         try:
-            QtWidgets.QTreeWidgetItem(section_item, ["Server:", ComputeManager.instance().getCompute(ios_router["compute_id"]).name()])
+            compute_id = ios_router.get("compute_id")
+            if compute_id:
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", ComputeManager.instance().getCompute(compute_id).name()])
+            else:
+                if Controller.instance().settings()["dynamic_compute_allocation"]:
+                    msg = "Dynamically allocated by the controller"
+                else:
+                    msg = "Manually chosen"
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", msg])
         except KeyError:
             pass
         QtWidgets.QTreeWidgetItem(section_item, ["Platform:", ios_router["platform"]])
@@ -395,6 +403,7 @@ class IOSRouterPreferencesPage(QtWidgets.QWidget, Ui_IOSRouterPreferencesPageWid
         QtWidgets.QTreeWidgetItem(section_item, ["Image:", ios_router["image"]])
         QtWidgets.QTreeWidgetItem(section_item, ["Console type:", ios_router["console_type"]])
         QtWidgets.QTreeWidgetItem(section_item, ["Auto start console:", "{}".format(ios_router["console_auto_start"])])
+        QtWidgets.QTreeWidgetItem(section_item, ["Auxiliary console type:", ios_router["aux_type"]])
         if ios_router["idlepc"]:
             QtWidgets.QTreeWidgetItem(section_item, ["Idle-PC:", ios_router["idlepc"]])
         if ios_router["startup_config"]:

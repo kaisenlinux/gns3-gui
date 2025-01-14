@@ -74,6 +74,10 @@ class GraphicsView(QtWidgets.QGraphicsView):
     :param parent: parent widget
     """
 
+    # Class-level constants for default colors
+    DEFAULT_DRAWING_GRID_COLOR = QtGui.QColor(208, 208, 208)  # #D0D0D0
+    DEFAULT_NODE_GRID_COLOR = QtGui.QColor(190, 190, 190)     # #BEBEBE
+
     def __init__(self, parent):
 
         # Our parent is the central widget which parent is the main window.
@@ -92,10 +96,10 @@ class GraphicsView(QtWidgets.QGraphicsView):
         self._dragging = False
         self._grid_size = 75
         self._drawing_grid_size = 25
+        self._drawing_grid_color = self.DEFAULT_DRAWING_GRID_COLOR
+        self._node_grid_color = self.DEFAULT_NODE_GRID_COLOR
         self._last_mouse_position = None
         self._topology = Topology.instance()
-        self._background_warning_msgbox = QtWidgets.QErrorMessage(self)
-        self._background_warning_msgbox.setWindowTitle("Layer position")
 
         # set the scene
         scene = QtWidgets.QGraphicsScene(parent=self)
@@ -666,7 +670,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
                     self.configureSlot()
                     return
                 else:
-                    if sys.platform.startswith("win") and item.node().bringToFront():
+                    if item.node().bringToFront():
                         return
                     self.consoleFromItems(self.scene().selectedItems())
                     return
@@ -827,6 +831,18 @@ class GraphicsView(QtWidgets.QGraphicsView):
             menu.addAction(console_edit_action)
 
         if True in list(map(lambda item: isinstance(item, NodeItem), items)):
+            isolate_action = QtWidgets.QAction("Isolate", menu)
+            isolate_action.setIcon(get_icon("link-pause.svg"))
+            isolate_action.triggered.connect(self.isolateActionSlot)
+            menu.addAction(isolate_action)
+
+        if True in list(map(lambda item: isinstance(item, NodeItem), items)):
+            unisolate_action = QtWidgets.QAction("Un-isolate", menu)
+            unisolate_action.setIcon(get_icon("link-start.svg"))
+            unisolate_action.triggered.connect(self.unisolateActionSlot)
+            menu.addAction(unisolate_action)
+
+        if True in list(map(lambda item: isinstance(item, NodeItem), items)):
             # Action: Change hostname
             change_hostname_action = QtWidgets.QAction("Change hostname", menu)
             change_hostname_action.setIcon(get_icon("show-hostname.svg"))
@@ -860,8 +876,8 @@ class GraphicsView(QtWidgets.QGraphicsView):
             show_in_file_manager_action.triggered.connect(self.showInFileManagerSlot)
             menu.addAction(show_in_file_manager_action)
 
-        if sys.platform.startswith("win") and True in list(map(lambda item: isinstance(item, NodeItem) and hasattr(item.node(), "bringToFront"), items)):
-            # Action: bring console or window to front (Windows only)
+        if not sys.platform.startswith("darwin") and True in list(map(lambda item: isinstance(item, NodeItem) and hasattr(item.node(), "bringToFront"), items)):
+            # Action: bring console or window to front (Windows and Linux only)
             bring_to_front_action = QtWidgets.QAction("Bring to front", menu)
             bring_to_front_action.setIcon(get_icon("front.svg"))
             bring_to_front_action.triggered.connect(self.bringToFrontSlot)
@@ -1005,6 +1021,26 @@ class GraphicsView(QtWidgets.QGraphicsView):
             if isinstance(item, NodeItem) and hasattr(item.node(), "reload") and item.node().initialized():
                 item.node().reload()
 
+    def isolateActionSlot(self):
+        """
+        Slot to receive events from the isolate action in the
+        contextual menu.
+        """
+
+        for item in self.scene().selectedItems():
+            if isinstance(item, NodeItem) and hasattr(item.node(), "isolate") and item.node().initialized():
+                item.node().isolate()
+
+    def unisolateActionSlot(self):
+        """
+        Slot to receive events from the unisolate action in the
+        contextual menu.
+        """
+
+        for item in self.scene().selectedItems():
+            if isinstance(item, NodeItem) and hasattr(item.node(), "unisolate") and item.node().initialized():
+                item.node().unisolate()
+
     def configureActionSlot(self):
         """
         Slot to receive events from the configure action in the
@@ -1032,10 +1068,6 @@ class GraphicsView(QtWidgets.QGraphicsView):
                     if not new_hostname.strip():
                         QtWidgets.QMessageBox.critical(self, "Change hostname", "Hostname cannot be blank")
                         continue
-                    if hasattr(item.node(), "validateHostname"):
-                        if not item.node().validateHostname(new_hostname):
-                            QtWidgets.QMessageBox.critical(self, "Change hostname", "Invalid name detected for this node: {}".format(new_hostname))
-                            continue
                     item.node().update({"name": new_hostname})
 
     def changeSymbolActionSlot(self):
@@ -1068,7 +1100,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
                     break
 
                 if os.path.exists(node_dir):
-                    log.debug("Open %s in file manager")
+                    log.debug(f"Open {node_dir} in file manager")
                     if QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(node_dir)) is False:
                         QtWidgets.QMessageBox.critical(self, "Show in file manager", "Failed to open {}".format(node_dir))
                         break
@@ -1659,11 +1691,39 @@ class GraphicsView(QtWidgets.QGraphicsView):
         self._topology.addDrawing(item)
         return item
 
+    @QtCore.Property(QtGui.QColor)
+    def drawingGridColor(self):
+        """Returns the drawing grid color"""
+        return self._drawing_grid_color
+
+    @drawingGridColor.setter
+    def drawingGridColor(self, color):
+        """Sets the drawing grid color"""
+        self._drawing_grid_color = color
+        self.viewport().update()
+
+    @QtCore.Property(QtGui.QColor)
+    def nodeGridColor(self):
+        """Returns the node grid color"""
+        return self._node_grid_color
+
+    @nodeGridColor.setter
+    def nodeGridColor(self, color):
+        """Sets the node grid color"""
+        self._node_grid_color = color
+        self.viewport().update()
+
+    def resetGridColors(self):
+        """Reset grid colors to defaults"""
+        self._drawing_grid_color = self.DEFAULT_DRAWING_GRID_COLOR
+        self._node_grid_color = self.DEFAULT_NODE_GRID_COLOR
+        self.viewport().update()
+
     def drawBackground(self, painter, rect):
         super().drawBackground(painter, rect)
         if self._main_window.uiShowGridAction.isChecked():
-            grids = [(self.drawingGridSize(), QtGui.QColor(208, 208, 208)),
-                     (self.nodeGridSize(), QtGui.QColor(190, 190, 190))]
+            grids = [(self.drawingGridSize(), self._drawing_grid_color),
+                     (self.nodeGridSize(), self._node_grid_color)]
             painter.save()
             for (grid, colour) in grids:
                 if not grid:

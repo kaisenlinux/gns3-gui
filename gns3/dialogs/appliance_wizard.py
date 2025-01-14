@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 from ..qt import sip
 import shutil
 
@@ -29,7 +30,7 @@ from ..registry.registry import Registry
 from ..registry.config import Config
 from ..registry.appliance_to_template import ApplianceToTemplate
 from ..registry.image import Image
-from ..utils import human_filesize
+from ..utils import human_size
 from ..utils.wait_for_lambda_worker import WaitForLambdaWorker
 from ..utils.progress_dialog import ProgressDialog
 from ..compute_manager import ComputeManager
@@ -52,7 +53,6 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
 
         self.setupUi(self)
         self._refreshing = False
-        self._server_check = False
         self._template_created = False
         self._path = path
 
@@ -74,6 +74,12 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
 
         # directories where to search for images
         images_directories = list()
+
+        # add the current directory
+        if hasattr(sys, "frozen"):
+            images_directories.append(os.path.dirname(os.path.abspath(sys.executable)))
+        else:
+            images_directories.append(os.path.abspath(os.curdir))
 
         for emulator in ("QEMU", "IOU", "DYNAMIPS"):
             emulator_images_dir = ImageManager.instance().getDirectoryForType(emulator)
@@ -102,9 +108,6 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
 
         # customize the server selection
         self.uiRemoteRadioButton.toggled.connect(self._remoteServerToggledSlot)
-        if hasattr(self, "uiVMRadioButton"):
-            self.uiVMRadioButton.toggled.connect(self._vmToggledSlot)
-
         self.uiLocalRadioButton.toggled.connect(self._localToggledSlot)
         if Controller.instance().isRemote():
             self.uiLocalRadioButton.setText("Install the appliance on the main server")
@@ -138,7 +141,12 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
 
         # add symbol
         if self._appliance["category"] == "guest":
-            symbol = ":/symbols/computer.svg"
+            if self._appliance.template_type() == "docker":
+                symbol = ":/symbols/docker_guest.svg"
+            elif self._appliance.template_type() == "qemu":
+                symbol = ":/symbols/qemu_guest.svg"
+            else:
+                symbol = ":/symbols/computer.svg"
         else:
             symbol = ":/symbols/{}.svg".format(self._appliance["category"])
         self.page(page_id).setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(symbol))
@@ -146,12 +154,6 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
         if self.page(page_id) == self.uiServerWizardPage:
 
             Controller.instance().getSymbols(self._getSymbolsCallback)
-            template_type = self._appliance.template_type()
-            if not template_type:
-                raise ApplianceError("No template type found for appliance {}".format(self._appliance["name"]))
-            is_mac = ComputeManager.instance().localPlatform().startswith("darwin")
-            is_win = ComputeManager.instance().localPlatform().startswith("win")
-
             self.uiRemoteServersComboBox.clear()
             if len(ComputeManager.instance().remoteComputes()) == 0:
                 self.uiRemoteRadioButton.setEnabled(False)
@@ -160,49 +162,21 @@ class ApplianceWizard(QtWidgets.QWizard, Ui_ApplianceWizard):
                 for compute in ComputeManager.instance().remoteComputes():
                     self.uiRemoteServersComboBox.addItem(compute.name(), compute)
 
-            if not ComputeManager.instance().vmCompute():
-                self.uiVMRadioButton.setEnabled(False)
+            #if ComputeManager.instance().localPlatform() is None:
+            #    self.uiLocalRadioButton.setEnabled(False)
 
-            if ComputeManager.instance().localPlatform() is None:
-                self.uiLocalRadioButton.setEnabled(False)
-            elif is_mac or is_win:
-                if template_type == "qemu":
-                    # disallow usage of the local server because Qemu has issues on OSX and Windows
-                    if not LocalConfig.instance().experimental():
-                        self.uiLocalRadioButton.setEnabled(False)
-                elif template_type != "dynamips":
-                    self.uiLocalRadioButton.setEnabled(False)
-
-            if ComputeManager.instance().vmCompute():
-                self.uiVMRadioButton.setChecked(True)
-            elif ComputeManager.instance().localCompute() and self.uiLocalRadioButton.isEnabled():
+            if ComputeManager.instance().localCompute() and self.uiLocalRadioButton.isEnabled():
                 self.uiLocalRadioButton.setChecked(True)
             elif self.uiRemoteRadioButton.isEnabled():
                 self.uiRemoteRadioButton.setChecked(True)
             else:
                 self.uiRemoteRadioButton.setChecked(False)
 
-            if is_mac or is_win:
-                if not self.uiRemoteRadioButton.isEnabled() and not self.uiVMRadioButton.isEnabled() and not self.uiLocalRadioButton.isEnabled():
-                    QtWidgets.QMessageBox.warning(self, "GNS3 VM", "The GNS3 VM is not available, please configure the GNS3 VM before adding a new appliance.")
-
         elif self.page(page_id) == self.uiFilesWizardPage:
             if Controller.instance().isRemote() or self._compute_id != "local":
-                self._registry.getRemoteImageList(self._appliance.template_type(), self._compute_id)
+                self._registry.getRemoteImageList()
             else:
                 self.images_changed_signal.emit()
-
-        elif self.page(page_id) == self.uiQemuWizardPage:
-            if self._appliance.template_properties().get('kvm', 'require') == 'require':
-                self._server_check = False
-                Qemu.instance().getQemuCapabilitiesFromServer(self._compute_id, qpartial(self._qemuServerCapabilitiesCallback))
-            else:
-                self._server_check = True
-            if self._appliance["registry_version"] >= 8:
-                qemu_platform = self._appliance.template_properties()["platform"]
-            else:
-                qemu_platform = self._appliance.template_properties()["arch"]
-            Qemu.instance().getQemuBinariesFromServer(self._compute_id, qpartial(self._getQemuBinariesFromServerCallback), [qemu_platform])
 
         elif self.page(page_id) == self.uiInstructionsPage:
 
@@ -227,27 +201,8 @@ Usage: {}
 
             self.uiUsageTextEdit.setText(usage_info.strip())
 
-    def _qemuServerCapabilitiesCallback(self, result, error=None, *args, **kwargs):
-        """
-        Check if the server supports KVM or not
-        """
-
-        if self._appliance["registry_version"] >= 8:
-            qemu_platform = self._appliance.template_properties()["platform"]
-        else:
-            qemu_platform = self._appliance.template_properties()["arch"]
-        if error is None and "kvm" in result and qemu_platform in result["kvm"]:
-            self._server_check = True
-        else:
-            if error:
-                msg = result["message"]
-            else:
-                msg = "The selected server does not support KVM. A Linux server or the GNS3 VM running in VMware is required."
-            QtWidgets.QMessageBox.critical(self, "KVM support", msg)
-            self._server_check = False
-
     def _uiServerWizardPage_isComplete(self):
-        return self.uiRemoteRadioButton.isEnabled() or self.uiVMRadioButton.isEnabled() or self.uiLocalRadioButton.isEnabled()
+        return self.uiRemoteRadioButton.isEnabled() or self.uiLocalRadioButton.isEnabled()
 
     def _imageUploadedCallback(self, result, error=False, context=None, **kwargs):
         if context is None:
@@ -257,7 +212,7 @@ Usage: {}
             log.error("Error while uploading image '{}': {}".format(image_path, result["message"]))
         else:
             log.info("Image '{}' has been successfully uploaded".format(image_path))
-            self._registry.getRemoteImageList(self._appliance.template_type(), self._compute_id)
+            self._registry.getRemoteImageList()
 
     def _showApplianceInfoSlot(self):
         """
@@ -368,13 +323,13 @@ Usage: {}
 
                 size += image.get("filesize", 0)
                 image_widget = QtWidgets.QTreeWidgetItem([image["filename"],
-                                                          human_filesize(image.get("filesize", 0)),
+                                                          human_size(image.get("filesize", 0)),
                                                           image["status"]])
                 if image["status"] == "Missing":
                     image_widget.setForeground(2, QtGui.QBrush(QtGui.QColor("red")))
                 else:
                     image_widget.setForeground(2, QtGui.QBrush(QtGui.QColor("green")))
-                    image_widget.setToolTip(2, image["path"])
+                    image_widget.setToolTip(0, f'{image["status"]} with path: {image["path"]}')
 
                 # Associated data stored are col 0: version, col 1: image
                 image_widget.setData(0, QtCore.Qt.UserRole, version)
@@ -393,7 +348,7 @@ Usage: {}
                 expand = False
                 top.setForeground(2, QtGui.QBrush(QtGui.QColor("green")))
 
-            top.setData(1, QtCore.Qt.DisplayRole, human_filesize(size))
+            top.setData(1, QtCore.Qt.DisplayRole, human_size(size))
             top.setData(2, QtCore.Qt.DisplayRole, status)
             top.setData(0, QtCore.Qt.UserRole, version)
             top.setData(2, QtCore.Qt.UserRole, self._appliance)
@@ -428,11 +383,13 @@ Usage: {}
 
         for version in self._appliance["versions"]:
             for image in version["images"].values():
-                img = self._registry.search_image_file(self._appliance.template_type(),
-                                                       image["filename"],
-                                                       image.get("md5sum"),
-                                                       image.get("filesize"),
-                                                       strict_md5_check=not self.allowCustomFiles.isChecked())
+                img = self._registry.search_image_file(
+                    self._appliance.template_type(),
+                    image["filename"],
+                    image.get("md5sum"),
+                    image.get("filesize"),
+                    strict_md5_check=not self.allowCustomFiles.isChecked()
+                )
                 if img:
                     if img.location == "local":
                         image["status"] = "Found locally"
@@ -543,45 +500,27 @@ Usage: {}
         image = Image(self._appliance.template_type(), path, filename=disk["filename"])
         try:
             if "md5sum" in disk and image.md5sum != disk["md5sum"]:
-                reply = QtWidgets.QMessageBox.question(self, "Add appliance",
-                                                       "This is not the correct file. The MD5 sum is {} and should be {}.\nDo you want to accept it at your own risks?".format(image.md5sum, disk["md5sum"]),
-                                                       QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Add appliance",
+                    "This is not the correct file.\n\n"
+                    "MD5 checksum\n"
+                    f"actual:\t{image.md5sum}\n"
+                    f"expected:\t{disk['md5sum']}\n\n"
+                    "File size\n"
+                    f"actual:\t{image.filesize} bytes\n"
+                    f"expected:\t{disk['filesize']} bytes\n\n"
+                    "Do you want to accept it at your own risks?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+                )
                 if reply == QtWidgets.QMessageBox.No:
                     return
         except OSError as e:
             QtWidgets.QMessageBox.warning(self.parent(), "Add appliance", "Can't access to the image file {}: {}.".format(path, str(e)))
             return
 
-        image_upload_manger = ImageUploadManager(image, Controller.instance(), self._compute_id, self._imageUploadedCallback, LocalConfig.instance().directFileUpload())
+        image_upload_manger = ImageUploadManager(image, Controller.instance(), self.parent())
         image_upload_manger.upload()
-
-    def _getQemuBinariesFromServerCallback(self, result, error=False, **kwargs):
-        """
-        Callback for getQemuBinariesFromServer.
-
-        :param result: server response
-        :param error: indicates an error (boolean)
-        """
-
-        if error:
-            QtWidgets.QMessageBox.critical(self, "Qemu binaries", "{}".format(result["message"]))
-        else:
-            self.uiQemuListComboBox.clear()
-            for qemu in result:
-                if qemu["version"]:
-                    self.uiQemuListComboBox.addItem("{path} (v{version})".format(path=qemu["path"], version=qemu["version"]), qemu["path"])
-                else:
-                    self.uiQemuListComboBox.addItem("{path}".format(path=qemu["path"]), qemu["path"])
-            if self.uiQemuListComboBox.count() == 1:
-                self.next()
-            else:
-                if self._appliance["registry_version"] >= 8:
-                    qemu_platform = self._appliance.template_properties()["platform"]
-                else:
-                    qemu_platform = self._appliance.template_properties()["arch"]
-                i = self.uiQemuListComboBox.findData(qemu_platform, flags=QtCore.Qt.MatchEndsWith)
-                if i != -1:
-                    self.uiQemuListComboBox.setCurrentIndex(i)
 
     def _install(self, version):
         """
@@ -610,32 +549,9 @@ Usage: {}
                 return False
             appliance_configuration["name"] = appliance_configuration["name"].strip()
 
-        if self._appliance["registry_version"] >= 8:
-            if "settings" in appliance_configuration:
-                for settings in appliance_configuration["settings"]:
-                    if settings["template_type"] == "qemu":
-                        settings["template_properties"]["path"] = self.uiQemuListComboBox.currentData()
-        elif "qemu" in appliance_configuration:
-            appliance_configuration["qemu"]["path"] = self.uiQemuListComboBox.currentData()
-
         new_template = ApplianceToTemplate().new_template(appliance_configuration, self._compute_id, version, self._symbols, parent=self)
         TemplateManager.instance().createTemplate(Template(new_template), callback=self._templateCreatedCallback)
         return False
-
-        #worker = WaitForLambdaWorker(lambda: self._create_template(appliance_configuration, self._compute_id), allowed_exceptions=[ConfigException, OSError])
-        #progress_dialog = ProgressDialog(worker, "Add template", "Installing a new template...", None, busy=True, parent=self)
-        #progress_dialog.show()
-        #if progress_dialog.exec_():
-        #    QtWidgets.QMessageBox.information(self.parent(), "Add template", "{} template has been installed!".format(appliance_configuration["name"]))
-        #    return True
-        #return False
-
-        # worker = WaitForLambdaWorker(lambda: config.save(), allowed_exceptions=[ConfigException, OSError])
-        # progress_dialog = ProgressDialog(worker, "Add appliance", "Install the appliance...", None, busy=True, parent=self)
-        # progress_dialog.show()
-        # if progress_dialog.exec_():
-        #     QtWidgets.QMessageBox.information(self.parent(), "Add appliance", "{} installed!".format(appliance_configuration["name"]))
-        #     return True
 
     def _templateCreatedCallback(self, result, error=False, **kwargs):
 
@@ -656,37 +572,24 @@ Usage: {}
             appliance_configuration = self._appliance.search_images_for_version(version)
         except ApplianceError as e:
             QtWidgets.QMessageBox.critical(self, "Appliance","Cannot install {} version {}: {}".format(name, version, e))
-            return
+            return False
         for image in appliance_configuration["images"]:
             if image["location"] == "local":
                 if not Controller.instance().isRemote() and self._compute_id == "local" and image["path"].startswith(ImageManager.instance().getDirectory()):
                     log.debug("{} is already on the local server".format(image["path"]))
-                    return
+                    return True
                 image = Image(self._appliance.template_type(), image["path"], filename=image["filename"])
-                image_upload_manager = ImageUploadManager(image, Controller.instance(), self._compute_id, self._applianceImageUploadedCallback, LocalConfig.instance().directFileUpload())
-                image_upload_manager.upload()
-                self._image_uploading_count += 1
-
-    def _applianceImageUploadedCallback(self, result, error=False, context=None, **kwargs):
-        if context is None:
-            context = {}
-        image_path = context.get("image_path", "unknown")
-        if error:
-            log.error("Error while uploading image '{}': {}".format(image_path, result["message"]))
-        else:
-            log.info("Image '{}' has been successfully uploaded".format(image_path))
-            self._image_uploading_count -= 1
+                image_upload_manager = ImageUploadManager(image, Controller.instance(), self.parent())
+                if not image_upload_manager.upload():
+                    return False
+        return True
 
     def nextId(self):
         if self.currentPage() == self.uiServerWizardPage:
             if self._appliance.template_type() == "docker":
                 # skip Qemu binary selection and files pages if this is a Docker appliance
-                return super().nextId() + 3
-            elif self._appliance.template_type() != "qemu":
-                # skip the Qemu binary selection page if not a Qemu appliance
-                return super().nextId() + 1
-        if self.currentPage() == self.uiQemuWizardPage:
-            if not self._appliance.get("installation_instructions"):
+                return super().nextId() + 2
+            elif not self._appliance.get("installation_instructions"):
                 # skip the installation instructions page if there are no instructions
                 return super().nextId() + 1
         return super().nextId()
@@ -718,7 +621,7 @@ Usage: {}
             if reply == QtWidgets.QMessageBox.No:
                 return False
 
-            self._uploadImages(appliance["name"], version["name"])
+            return self._uploadImages(appliance["name"], version["name"])
 
         elif self.currentPage() == self.uiUsageWizardPage:
             # validate the usage page
@@ -743,8 +646,6 @@ Usage: {}
                     QtWidgets.QMessageBox.critical(self, "Remote server", "There is no remote servers configured in your preferences")
                     return False
                 self._compute_id = self.uiRemoteServersComboBox.itemData(self.uiRemoteServersComboBox.currentIndex()).id()
-            elif hasattr(self, "uiVMRadioButton") and self.uiVMRadioButton.isChecked():
-                self._compute_id = "vm"
             else:
                 if ComputeManager.instance().localPlatform():
                     if (ComputeManager.instance().localPlatform().startswith("darwin") or ComputeManager.instance().localPlatform().startswith("win")):
@@ -754,27 +655,7 @@ Usage: {}
                                 return False
                 self._compute_id = "local"
 
-        elif self.currentPage() == self.uiQemuWizardPage:
-            # validate the Qemu
-            if self._server_check is False:
-                QtWidgets.QMessageBox.critical(self, "Checking for KVM support", "Please wait for the server to reply...")
-                return False
-            if self.uiQemuListComboBox.currentIndex() == -1:
-                QtWidgets.QMessageBox.critical(self, "Qemu binary", "No compatible Qemu binary selected")
-                return False
         return True
-
-    @qslot
-    def _vmToggledSlot(self, checked):
-        """
-        Slot for when the VM radio button is toggled.
-
-        :param checked: either the button is checked or not
-        """
-
-        if checked:
-            self.uiRemoteServersGroupBox.setEnabled(False)
-            self.uiRemoteServersGroupBox.hide()
 
     @qslot
     def _remoteServerToggledSlot(self, checked):

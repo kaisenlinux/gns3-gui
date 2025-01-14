@@ -28,18 +28,20 @@ import logging
 log = logging.getLogger(__name__)
 
 from gns3.qt import QtNetwork, QtWidgets
-from ..ui.server_preferences_page_ui import Ui_ServerPreferencesPageWidget
+from ..ui.controller_preferences_page_ui import Ui_ControllerPreferencesPageWidget
 from ..topology import Topology
-from ..settings import LOCAL_SERVER_SETTINGS, DEFAULT_LOCAL_SERVER_HOST
+from ..settings import CONTROLLER_SETTINGS, DEFAULT_CONTROLLER_HOST
 from ..dialogs.edit_compute_dialog import EditComputeDialog
 from ..local_server import LocalServer
 from ..compute_manager import ComputeManager
+from gns3.http_client import HTTPClient
+from gns3.controller import Controller
 
 
-class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
+class ControllerPreferencesPage(QtWidgets.QWidget, Ui_ControllerPreferencesPageWidget):
 
     """
-    QWidget configuration page for server preferences.
+    QWidget configuration page for controller preferences.
     """
 
     def __init__(self, parent=None):
@@ -54,6 +56,7 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
         self.uiAddRemoteServerPushButton.clicked.connect(self._remoteServerAddSlot)
         self.uiDeleteRemoteServerPushButton.clicked.connect(self._remoteServerDeleteSlot)
         self.uiUpdateRemoteServerPushButton.clicked.connect(self._remoteServerUpdateSlot)
+        self.uiConnectPushButton.clicked.connect(self._connectSlot)
 
         self.uiRemoteServersTreeWidget.itemSelectionChanged.connect(self._remoteServerChangedSlot)
         self.uiRestoreDefaultsPushButton.clicked.connect(self._restoreDefaultsSlot)
@@ -72,7 +75,7 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
         self.uiLocalServerHostComboBox.addItem("0.0.0.0", "0.0.0.0")  # all IPv4 addresses
 
         # default is 127.0.0.1
-        index = self.uiLocalServerHostComboBox.findText(DEFAULT_LOCAL_SERVER_HOST)
+        index = self.uiLocalServerHostComboBox.findText(DEFAULT_CONTROLLER_HOST)
         if index != -1:
             self.uiLocalServerHostComboBox.setCurrentIndex(index)
 
@@ -97,7 +100,7 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
         Slot to restore default settings
         """
 
-        self._populateWidgets(LOCAL_SERVER_SETTINGS)
+        self._populateWidgets(CONTROLLER_SETTINGS)
 
     def _localServerBrowserSlot(self):
         """
@@ -175,6 +178,24 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
         if dialog.exec_():
             self._populateRemoteServersTree()
 
+    def _connectSlot(self):
+        """
+        Connects to a remote controller.
+        """
+
+        controller_settings = {
+            "host": self.uiRemoteMainServerHostLineEdit.text(),
+            "port": self.uiRemoteMainServerPortSpinBox.value(),
+            "protocol": self.uiRemoteMainServerProtocolComboBox.currentText().lower(),
+            "username": self.uiRemoteMainServerUserLineEdit.text(),
+            "password": self.uiRemoteMainServerPasswordLineEdit.text(),
+            "remote": True
+        }
+        http_client = HTTPClient(controller_settings)
+        Controller.instance().setHttpClient(http_client)
+        if http_client.connected():
+            QtWidgets.QMessageBox.information(self, "Controller", "Successfully connected to controller {}".format(controller_settings["host"]))
+
     def _populateWidgets(self, servers_settings):
         """
         Populates the widgets with the settings.
@@ -192,15 +213,20 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
         self.uiRemoteMainServerHostLineEdit.setText(servers_settings["host"])
         self.uiRemoteMainServerPortSpinBox.setValue(servers_settings["port"])
         self.uiRemoteMainServerProtocolComboBox.setCurrentText(servers_settings["protocol"].upper())
-        self.uiRemoteMainServerUserLineEdit.setText(servers_settings["user"])
+        self.uiRemoteMainServerUserLineEdit.setText(servers_settings["username"])
         self.uiRemoteMainServerPasswordLineEdit.setText(servers_settings["password"])
-        self.uiRemoteMainServerAuthCheckBox.setChecked(servers_settings["auth"])
 
-        self.uiLocalServerAutoStartCheckBox.setChecked(servers_settings["auto_start"])
-        self._useLocalServerAutoStartSlot(servers_settings["auto_start"])
+        self.uiLocalServerAutoStartCheckBox.setChecked(False)
+        self.uiLocalServerAutoStartCheckBox.setEnabled(False)
+        self._useLocalServerAutoStartSlot(False)
+        if sys.platform.startswith("linux"):
+            # Local controller only supported on Linux
+            self.uiLocalServerAutoStartCheckBox.setChecked(servers_settings["auto_start"])
+            self.uiLocalServerAutoStartCheckBox.setEnabled(True)
+            self._useLocalServerAutoStartSlot(servers_settings["auto_start"])
 
-        self.uiLocalServerAuthCheckBox.setChecked(servers_settings["auth"])
         self.uiConsoleConnectionsToAnyIPCheckBox.setChecked(servers_settings["allow_console_from_anywhere"])
+        self.uiDynamicComputeAllocationCheckBox.setChecked(servers_settings["dynamic_compute_allocation"])
         self.uiConsoleStartPortSpinBox.setValue(servers_settings["console_start_port_range"])
         self.uiConsoleEndPortSpinBox.setValue(servers_settings["console_end_port_range"])
         self.uiUDPStartPortSpinBox.setValue(servers_settings["udp_start_port_range"])
@@ -252,8 +278,9 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
                                           "host": self.uiLocalServerHostComboBox.itemData(self.uiLocalServerHostComboBox.currentIndex()),
                                           "port": self.uiLocalServerPortSpinBox.value(),
                                           "auto_start": self.uiLocalServerAutoStartCheckBox.isChecked(),
+                                          "remote": False,
                                           "allow_console_from_anywhere": self.uiConsoleConnectionsToAnyIPCheckBox.isChecked(),
-                                          "auth": self.uiLocalServerAuthCheckBox.isChecked(),
+                                          "dynamic_compute_allocation": self.uiDynamicComputeAllocationCheckBox.isChecked(),
                                           "console_start_port_range": self.uiConsoleStartPortSpinBox.value(),
                                           "console_end_port_range": self.uiConsoleEndPortSpinBox.value(),
                                           "udp_start_port_range": self.uiUDPStartPortSpinBox.value(),
@@ -287,15 +314,15 @@ class ServerPreferencesPage(QtWidgets.QWidget, Ui_ServerPreferencesPageWidget):
             new_local_server_settings["host"] = self.uiRemoteMainServerHostLineEdit.text()
             new_local_server_settings["port"] = self.uiRemoteMainServerPortSpinBox.value()
             new_local_server_settings["protocol"] = self.uiRemoteMainServerProtocolComboBox.currentText().lower()
-            new_local_server_settings["user"] = self.uiRemoteMainServerUserLineEdit.text()
+            new_local_server_settings["username"] = self.uiRemoteMainServerUserLineEdit.text()
             new_local_server_settings["password"] = self.uiRemoteMainServerPasswordLineEdit.text()
-            new_local_server_settings["auth"] = self.uiRemoteMainServerAuthCheckBox.isChecked()
+            new_local_server_settings["remote"] = True
 
-            # Some users get confused by remote server and  main server and same
+            # Some users get confused by compute and controller and
             # configure the same server twice
             for compute in self._remote_computes.values():
                 if new_local_server_settings["host"] == compute.host() and new_local_server_settings["port"] == compute.port():
-                    QtWidgets.QMessageBox.critical(self, "Local server", "You can't use a server as main server and as a remote server.")
+                    QtWidgets.QMessageBox.critical(self, "Remote compute", "Is it not possible to use a controller as a remote compute")
                     return
             LocalServer.instance().updateLocalServerSettings(new_local_server_settings)
 

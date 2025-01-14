@@ -19,6 +19,8 @@
 Configuration page for Docker images.
 """
 
+import re
+
 from gns3.qt import QtWidgets
 from gns3.node import Node
 from gns3.dialogs.custom_adapters_configuration_dialog import CustomAdaptersConfigurationDialog
@@ -69,15 +71,25 @@ class DockerVMConfigurationPage(QtWidgets.QWidget, Ui_dockerVMConfigPageWidget):
 
         if self._node:
             adapters = self._settings["adapters"]
+            base_mac_address = self._settings["mac_address"]
         else:
             adapters = self.uiAdapterSpinBox.value()
+            mac = self.uiMacAddrLineEdit.text()
+            if mac != ":::::":
+                if not re.search(r"""^([0-9a-fA-F]{2}[:]){5}[0-9a-fA-F]{2}$""", mac):
+                    QtWidgets.QMessageBox.critical(self, "MAC address", "Invalid MAC address (format required: hh:hh:hh:hh:hh:hh)")
+                    return
+                else:
+                    base_mac_address = mac
+            else:
+                base_mac_address = ""
 
         ports = []
         for adapter_number in range(0, adapters):
             port_name = "eth{}".format(adapter_number)
             ports.append(port_name)
 
-        dialog = CustomAdaptersConfigurationDialog(ports, self._custom_adapters, parent=self)
+        dialog = CustomAdaptersConfigurationDialog(ports, self._custom_adapters, "TAP", {"TAP": "Default"}, base_mac_address, parent=self)
         dialog.show()
         dialog.exec_()
 
@@ -100,11 +112,14 @@ class DockerVMConfigurationPage(QtWidgets.QWidget, Ui_dockerVMConfigPageWidget):
         self.uiEnvironmentTextEdit.setText(settings["environment"])
         self.uiConsoleTypeComboBox.setCurrentIndex(self.uiConsoleTypeComboBox.findText(settings["console_type"]))
         self.uiConsoleAutoStartCheckBox.setChecked(settings["console_auto_start"])
+        self.uiAuxTypeComboBox.setCurrentIndex(self.uiAuxTypeComboBox.findText(settings["aux_type"]))
         self.uiConsoleResolutionComboBox.setCurrentIndex(self.uiConsoleResolutionComboBox.findText(settings["console_resolution"]))
         self.uiConsoleHttpPortSpinBox.setValue(settings["console_http_port"])
         self.uiHttpConsolePathLineEdit.setText(settings["console_http_path"])
         self.uiExtraHostsTextEdit.setPlainText(settings["extra_hosts"])
         self.uiExtraVolumeTextEdit.setPlainText("\n".join(settings["extra_volumes"]))
+        self.uiMaxMemorySpinBox.setValue(settings["memory"])
+        self.uiMaxCPUsDoubleSpinBox.setValue(settings["cpus"])
 
         if not group:
             self.uiNameLineEdit.setText(settings["name"])
@@ -150,6 +165,13 @@ class DockerVMConfigurationPage(QtWidgets.QWidget, Ui_dockerVMConfigPageWidget):
             self.uiSymbolLineEdit.hide()
             self.uiSymbolToolButton.hide()
 
+        # load the MAC address setting
+        self.uiMacAddrLineEdit.setInputMask("HH:HH:HH:HH:HH:HH;_")
+        if settings["mac_address"]:
+            self.uiMacAddrLineEdit.setText(settings["mac_address"])
+        else:
+            self.uiMacAddrLineEdit.clear()
+
         self.uiUsageTextEdit.setPlainText(settings["usage"])
 
     def _networkConfigEditSlot(self):
@@ -172,12 +194,15 @@ class DockerVMConfigurationPage(QtWidgets.QWidget, Ui_dockerVMConfigPageWidget):
         settings["environment"] = self.uiEnvironmentTextEdit.toPlainText()
         settings["console_type"] = self.uiConsoleTypeComboBox.currentText()
         settings["console_auto_start"] = self.uiConsoleAutoStartCheckBox.isChecked()
+        settings["aux_type"] = self.uiAuxTypeComboBox.currentText()
         settings["console_resolution"] = self.uiConsoleResolutionComboBox.currentText()
         settings["console_http_port"] = self.uiConsoleHttpPortSpinBox.value()
         settings["console_http_path"] = self.uiHttpConsolePathLineEdit.text()
         settings["extra_hosts"] = self.uiExtraHostsTextEdit.toPlainText()
         # only tidy input here, validation is performed server side
         settings["extra_volumes"] = [ y for x in self.uiExtraVolumeTextEdit.toPlainText().split("\n") for y in [ x.strip() ] if y ]
+        settings["memory"] = self.uiMaxMemorySpinBox.value()
+        settings["cpus"] = round(self.uiMaxCPUsDoubleSpinBox.value(), self.uiMaxCPUsDoubleSpinBox.decimals())
 
         if not group:
             adapters = self.uiAdapterSpinBox.value()
@@ -198,6 +223,18 @@ class DockerVMConfigurationPage(QtWidgets.QWidget, Ui_dockerVMConfigPageWidget):
                 QtWidgets.QMessageBox.critical(self, "Name", "Docker name cannot be empty!")
             else:
                 settings["name"] = name
+
+            # check and save the MAC address
+            mac = self.uiMacAddrLineEdit.text()
+            if mac != ":::::":
+                if not re.search(r"""^([0-9a-fA-F]{2}[:]){5}[0-9a-fA-F]{2}$""", mac):
+                    QtWidgets.QMessageBox.critical(self, "MAC address", "Invalid MAC address (format required: hh:hh:hh:hh:hh:hh)")
+                    if node:
+                        raise ConfigurationError()
+                else:
+                    settings["mac_address"] = mac
+            else:
+                settings["mac_address"] = None
 
         if not node:
             # these are template settings

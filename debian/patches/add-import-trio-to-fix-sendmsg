@@ -1,0 +1,12 @@
+Author: Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>
+
+--- gns3-gui-3.0.2.orig/gns3/main.py
++++ gns3-gui-3.0.2/gns3/main.py
+@@ -19,6 +19,7 @@
+ import sys
+ import os
+ import faulthandler
++import trio
+ 
+ # Try to install updates & restart application if an update is installed
+ try:

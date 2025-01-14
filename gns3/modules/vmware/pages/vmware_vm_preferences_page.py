@@ -83,7 +83,9 @@ class VMwareVMPreferencesPage(QtWidgets.QWidget, Ui_VMwareVMPreferencesPageWidge
         if vmware_vm["linked_clone"]:
             QtWidgets.QTreeWidgetItem(section_item, ["Default name format:", vmware_vm["default_name_format"]])
         try:
-            QtWidgets.QTreeWidgetItem(section_item, ["Server:", ComputeManager.instance().getCompute(vmware_vm["compute_id"]).name()])
+            compute_id = vmware_vm.get("compute_id")
+            if compute_id:
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", ComputeManager.instance().getCompute(compute_id).name()])
         except KeyError:
             pass
         QtWidgets.QTreeWidgetItem(section_item, ["Headless mode enabled:", "{}".format(vmware_vm["headless"])])
@@ -130,6 +132,7 @@ class VMwareVMPreferencesPage(QtWidgets.QWidget, Ui_VMwareVMPreferencesPageWidge
         Creates a new VMware VM.
         """
 
+        QtWidgets.QMessageBox.warning(self, "VMware VM", "VMware VM support is deprecated and will be removed in a future version, please use Qemu VMs instead")
         wizard = VMwareVMWizard(self._vmware_vms, parent=self)
         wizard.show()
         if wizard.exec_():

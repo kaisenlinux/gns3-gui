@@ -26,8 +26,6 @@ import psutil
 from .qt import QtCore, QtWidgets
 from .version import __version__, __version_info__
 from .utils import parse_version
-from .local_server_config import LocalServerConfig
-from .settings import LOCAL_SERVER_SETTINGS
 
 import logging
 log = logging.getLogger(__name__)
@@ -100,10 +98,10 @@ class LocalConfig(QtCore.QObject):
                     # migrate post version 2.2.0 configuration file
                     shutil.copyfile(old_config_path, self._config_file)
                     # reset the local server path and ubridge path
-                    settings = LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)
-                    settings["path"] = ""
-                    settings["ubridge_path"] = ""
-                    LocalServerConfig.instance().saveSettings("Server", settings)
+                    # settings = LocalServerConfig.instance().loadSettings("Controller", CONTROLLER_SETTINGS)
+                    # settings["path"] = ""
+                    # settings["ubridge_path"] = ""
+                    # LocalServerConfig.instance().saveSettings("Controller", settings)
                 else:
                     # create a new config
                     with open(self._config_file, "w", encoding="utf-8") as f:
@@ -416,20 +414,6 @@ class LocalConfig(QtCore.QObject):
         settings["multi_profiles"] = value
         self.saveSectionSettings("MainWindow", settings)
 
-    def directFileUpload(self):
-        """
-        :returns: Boolean. True if direct_file_upload is enabled
-        """
-
-        from gns3.settings import GENERAL_SETTINGS
-        return self.loadSectionSettings("MainWindow", GENERAL_SETTINGS)["direct_file_upload"]
-
-    def setDirectFileUpload(self, value):
-        from gns3.settings import GENERAL_SETTINGS
-        settings = self.loadSectionSettings("MainWindow", GENERAL_SETTINGS)
-        settings["direct_file_upload"] = value
-        self.saveSectionSettings("MainWindow", settings)
-
     def showInterfaceLabelsOnNewProject(self):
         """
         :returns: Boolean. True if show_interface_labels_on_new_project is enabled
@@ -483,7 +467,7 @@ class LocalConfig(QtCore.QObject):
 
         if os.path.exists(pid_path):
             try:
-                with open(pid_path) as f:
+                with open(pid_path, encoding="utf-8") as f:
                     pid = int(f.read())
                     if pid != my_pid:
                         try:
@@ -498,9 +482,17 @@ class LocalConfig(QtCore.QObject):
                                     return False
                     else:
                         return True
-            except (OSError, ValueError) as e:
+            except OSError as e:
                 log.critical("Can't read pid file %s: %s", pid_path, str(e))
                 return False
+            except ValueError as e:
+                log.warning("Invalid data in pid file %s: %s", pid_path, str(e))
+                try:
+                    # try removing the file since it contains invalid data
+                    os.remove(pid_path)
+                except OSError:
+                    log.critical("Can't remove pid file %s", pid_path)
+                    return False
 
         try:
             with open(pid_path, 'w+') as f:

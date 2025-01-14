@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 class DrawingItem:
     # Map QT stroke to SVG style
     QT_DASH_TO_SVG = {
-        QtCore.Qt.SolidLine: "",
+        QtCore.Qt.SolidLine: "none",
         QtCore.Qt.NoPen: None,
         QtCore.Qt.DashLine: "25, 25",
         QtCore.Qt.DotLine: "5, 25",
@@ -93,7 +93,7 @@ class DrawingItem:
 
     def updateDrawing(self):
         if self._id and not self.deleting() and self._project:
-            self._project.put("/drawings/" + self._id, self.updateDrawingCallback, body=self.__json__(), showProgress=False)
+            self._project.put("/drawings/" + self._id, self.updateDrawingCallback, body=self.__json__(), show_progress=False)
 
     @qslot
     def updateDrawingCallback(self, result, error=False, **kwargs):
@@ -229,10 +229,8 @@ class DrawingItem:
         if change == QtWidgets.QGraphicsItem.ItemPositionChange and self._main_window.uiSnapToGridAction.isChecked() \
                 and self._allow_snap_to_grid:
             grid_size = self._graphics_view.drawingGridSize()
-            mid_x = self.boundingRect().width() / 2
-            value.setX((grid_size * round((value.x() + mid_x) / grid_size)) - mid_x)
-            mid_y = self.boundingRect().height() / 2
-            value.setY((grid_size * round((value.y()+mid_y)/grid_size)) - mid_y)
+            value.setX(grid_size * round(value.x() / grid_size))
+            value.setY(grid_size * round(value.y() / grid_size))
 
         if change == QtWidgets.QGraphicsItem.ItemSelectedChange:
             if not value:

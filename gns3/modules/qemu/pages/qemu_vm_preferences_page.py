@@ -84,17 +84,26 @@ class QemuVMPreferencesPage(QtWidgets.QWidget, Ui_QemuVMPreferencesPageWidget):
         if qemu_vm["linked_clone"]:
             QtWidgets.QTreeWidgetItem(section_item, ["Default name format:", qemu_vm["default_name_format"]])
         try:
-            QtWidgets.QTreeWidgetItem(section_item, ["Server:", ComputeManager.instance().getCompute(qemu_vm["compute_id"]).name()])
+            compute_id = qemu_vm.get("compute_id")
+            if compute_id:
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", ComputeManager.instance().getCompute(compute_id).name()])
+            else:
+                if Controller.instance().settings()["dynamic_compute_allocation"]:
+                    msg = "Dynamically allocated by the controller"
+                else:
+                    msg = "Manually chosen"
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", msg])
         except KeyError:
             pass
+        QtWidgets.QTreeWidgetItem(section_item, ["QEMU platform:", os.path.basename(qemu_vm["platform"])])
+        if qemu_vm["qemu_path"]:
+            QtWidgets.QTreeWidgetItem(section_item, ["Custom QEMU path:", qemu_vm["qemu_path"]])
         QtWidgets.QTreeWidgetItem(section_item, ["Console type:", qemu_vm["console_type"]])
         QtWidgets.QTreeWidgetItem(section_item, ["Auto start console:", "{}".format(qemu_vm["console_auto_start"])])
+        QtWidgets.QTreeWidgetItem(section_item, ["Auxiliary console type:", qemu_vm["aux_type"]])
         QtWidgets.QTreeWidgetItem(section_item, ["CPUs:", str(qemu_vm["cpus"])])
         QtWidgets.QTreeWidgetItem(section_item, ["Memory:", "{} MB".format(qemu_vm["ram"])])
         QtWidgets.QTreeWidgetItem(section_item, ["Linked base VM:", "{}".format(qemu_vm["linked_clone"])])
-
-        if qemu_vm["qemu_path"]:
-            QtWidgets.QTreeWidgetItem(section_item, ["QEMU binary:", os.path.basename(qemu_vm["qemu_path"])])
 
         # fill out the Hard disks section
         if qemu_vm["hda_disk_image"] or qemu_vm["hdb_disk_image"] or qemu_vm["hdc_disk_image"] or qemu_vm["hdd_disk_image"]:

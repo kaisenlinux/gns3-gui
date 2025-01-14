@@ -63,17 +63,13 @@ class ApplianceToTemplate:
         if new_template.get("symbol") is None:
             if appliance_config["category"] == "guest":
                 if "docker" in appliance_config:
-                    new_template["symbol"] = ":/symbols/docker_guest.svg"
+                    new_template["symbol"] = "docker_guest"
                 else:
-                    new_template["symbol"] = ":/symbols/qemu_guest.svg"
-            elif appliance_config["category"] == "router":
-                new_template["symbol"] = ":/symbols/router.svg"
+                    new_template["symbol"] = "qemu_guest"
             elif appliance_config["category"] == "switch":
-                new_template["symbol"] = ":/symbols/ethernet_switch.svg"
-            elif appliance_config["category"] == "multilayer_switch":
-                new_template["symbol"] = ":/symbols/multilayer_switch.svg"
-            elif appliance_config["category"] == "firewall":
-                new_template["symbol"] = ":/symbols/firewall.svg"
+                new_template["symbol"] = "ethernet_switch"
+            else:
+                new_template["symbol"] = appliance_config["category"]
 
         if self._registry_version >= 8:
             if appliance_version:
@@ -160,16 +156,10 @@ class ApplianceToTemplate:
 
         for image in appliance_config["images"]:
             if image.get("path"):
-                new_config[image["type"]] = self._relative_image_path("QEMU", image["path"])
+                new_config[image["type"]] = image["filename"]
 
-        if "path" in template_properties:
-            new_config["qemu_path"] = template_properties["path"]
-        else:
-            if self._registry_version >= 8:
-                # the "arch" field was replaced by the "platform" field in registry version 8
-                new_config["qemu_path"] = "qemu-system-{}".format(template_properties["platform"])
-            else:
-                new_config["qemu_path"] = "qemu-system-{}".format(template_properties["arch"])
+        if "arch" in appliance_config:
+            new_config["platform"] = appliance_config["arch"]
 
         if "first_port_name" in appliance_config:
             new_config["first_port_name"] = appliance_config["first_port_name"]
@@ -198,38 +188,21 @@ class ApplianceToTemplate:
 
         new_config["template_type"] = "dynamips"
         new_config.update(template_properties)
-
         for image in appliance_config["images"]:
-            new_config[image["type"]] = self._relative_image_path("IOS", image["path"])
+            new_config[image["type"]] = image["filename"]
             if self._registry_version < 8:
                 new_config["idlepc"] = image.get("idlepc", "")
+        if "image" not in new_config:
+            raise ConfigException("Disk image is missing")
 
     def _add_iou_config(self, new_config, template_properties, appliance_config):
 
         new_config["template_type"] = "iou"
         new_config.update(template_properties)
         for image in appliance_config["images"]:
-            if "path" not in image:
-                raise ConfigException("Disk image is missing")
-            new_config[image["type"]] = self._relative_image_path("IOU", image["path"])
-        new_config["path"] = new_config["image"]
-
-    def _relative_image_path(self, image_dir_type, path):
-        """
-
-        :param image_dir_type: Type of image directory
-        :param filename: Filename at the end of the process
-        :param path: Full path to the file
-        :returns: Path relative to image directory.
-        Copy the image to the directory if not already in the directory
-        """
-
-        images_dir = os.path.join(Config().images_dir, image_dir_type)
-        path = os.path.abspath(path)
-        if os.path.commonprefix([images_dir, path]) == images_dir:
-            return path.replace(images_dir, '').strip('/\\')
-
-        return os.path.basename(path)
+            new_config["path"] = image["filename"]
+        if "path" not in new_config:
+            raise ConfigException("Disk image is missing")
 
     def _set_symbol(self, symbol_id, controller_symbols):
         """

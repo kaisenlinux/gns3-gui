@@ -73,7 +73,7 @@ class IOUDevice(Node):
 
         info = """Device {name} is {state}
   Running on server {host} with port {port}
-  Local ID is {id} and server ID is {node_id}
+  Local ID is {id} and node ID is {node_id}
   Hardware is Cisco IOU generic device with {memories_info}
   Console is on port {console} and type is {console_type}
   IOU image is "{image_name}"
@@ -118,23 +118,6 @@ class IOUDevice(Node):
 
         from .pages.iou_device_configuration_page import iouDeviceConfigurationPage
         return iouDeviceConfigurationPage
-
-    @staticmethod
-    def validateHostname(hostname):
-        """
-        Checks if the hostname is valid.
-
-        :param hostname: hostname to check
-
-        :returns: boolean
-        """
-
-        # IOS names must start with a letter, end with a letter or digit, and
-        # have as interior characters only letters, digits, and hyphens.
-        # They must be 63 characters or fewer (ARPANET rules).
-        if re.search(r"""^(?!-|[0-9])[a-zA-Z0-9-]{1,63}(?<!-)$""", hostname):
-            return True
-        return False
 
     @staticmethod
     def defaultSymbol():

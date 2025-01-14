@@ -86,7 +86,9 @@ class VirtualBoxVMPreferencesPage(QtWidgets.QWidget, Ui_VirtualBoxVMPreferencesP
             QtWidgets.QTreeWidgetItem(section_item, ["Default name format:", vbox_vm["default_name_format"]])
         QtWidgets.QTreeWidgetItem(section_item, ["RAM:", str(vbox_vm["ram"])])
         try:
-            QtWidgets.QTreeWidgetItem(section_item, ["Server:", ComputeManager.instance().getCompute(vbox_vm["compute_id"]).name()])
+            compute_id = vbox_vm.get("compute_id")
+            if compute_id:
+                QtWidgets.QTreeWidgetItem(section_item, ["Compute:", ComputeManager.instance().getCompute(compute_id).name()])
         except KeyError:
             pass
         QtWidgets.QTreeWidgetItem(section_item, ["Headless mode enabled:", "{}".format(vbox_vm["headless"])])
@@ -133,6 +135,7 @@ class VirtualBoxVMPreferencesPage(QtWidgets.QWidget, Ui_VirtualBoxVMPreferencesP
         Creates a new VirtualBox VM.
         """
 
+        QtWidgets.QMessageBox.warning(self, "VirtualBox VM", "VirtualBox VM support is deprecated and will be removed in a future version, please use Qemu VMs instead")
         wizard = VirtualBoxVMWizard(self._virtualbox_vms, parent=self)
         wizard.show()
         if wizard.exec_():

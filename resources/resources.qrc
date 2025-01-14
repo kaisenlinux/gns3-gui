@@ -3,12 +3,11 @@
         <file>symbols/router.svg</file>
         <file>symbols/firewall.svg</file>
         <file>symbols/computer.svg</file>
+        <file>symbols/vpcs_guest.svg</file>
         <file>symbols/qemu_guest.svg</file>
         <file>symbols/vbox_guest.svg</file>
-        <file>symbols/vpcs_guest.svg</file>
         <file>symbols/vmware_guest.svg</file>
         <file>symbols/docker_guest.svg</file>
-        <file>symbols/asa.svg</file>
         <file>symbols/multilayer_switch.svg</file>
         <file>symbols/atm_switch.svg</file>
         <file>symbols/frame_relay_switch.svg</file>
@@ -26,7 +25,6 @@
         <file>icons/console_edit.svg</file>
         <file>icons/command_line.svg</file>
         <file>icons/aux-console.svg</file>
-        <file>icons/command_line.svg</file>
         <file>icons/delete.svg</file>
         <file>icons/led_green.svg</file>
         <file>icons/led_red.svg</file>
@@ -62,9 +60,7 @@
         <file>icons/calculate.svg</file>
         <file>icons/wireshark.png</file>
         <file>icons/virtualbox.png</file>
-        <file>icons/qemu.svg</file>
         <file>icons/rtv.png</file>
-        <file>icons/traceng.png</file>
         <file>icons/image.svg</file>
         <file>icons/node_conception.svg</file>
         <file>icons/raise_z_value.svg</file>
@@ -96,7 +92,6 @@
         <file>icons/PC.png</file>
         <file>icons/PC-hover.png</file>
         <file>icons/firewall.png</file>
-        <file>icons/docker.png</file>
         <file>icons/firewall-hover.png</file>
         <file>icons/browse-all-icons.png</file>
         <file>icons/browse-all-icons-hover.png</file>
@@ -167,6 +162,8 @@
         <file>classic_icons/line-hover.svg</file>
         <file>classic_icons/reload.svg</file>
         <file>classic_icons/reload-hover.svg</file>
+        <file>classic_icons/link-start.svg</file>
+        <file>classic_icons/link-pause.svg</file>
         <file>classic_icons/router.svg</file>
         <file>classic_icons/router-hover.svg</file>
         <file>classic_icons/save-project.svg</file>
@@ -276,6 +273,8 @@
         <file>charcoal_icons/line-hover.svg</file>
         <file>charcoal_icons/reload.svg</file>
         <file>charcoal_icons/reload-hover.svg</file>
+        <file>charcoal_icons/link-start.svg</file>
+        <file>charcoal_icons/link-pause.svg</file>
         <file>charcoal_icons/router.svg</file>
         <file>charcoal_icons/router-hover.svg</file>
         <file>charcoal_icons/save-project.svg</file>

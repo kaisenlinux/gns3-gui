@@ -32,7 +32,6 @@ from gns3.modules.builtin import Builtin
 from gns3.modules.dynamips import Dynamips
 from gns3.modules.iou import IOU
 from gns3.modules.vpcs import VPCS
-from gns3.modules.traceng import TraceNG
 from gns3.modules.virtualbox import VirtualBox
 from gns3.modules.qemu import Qemu
 from gns3.modules.vmware import VMware
@@ -58,7 +57,6 @@ TEMPLATE_TYPE_TO_CONFIGURATION_PAGE = {
     "dynamips": Dynamips.configurationPage(),
     "iou": IOU.configurationPage(),
     "vpcs": VPCS.configurationPage(),
-    "traceng": TraceNG.configurationPage(),
     "virtualbox": VirtualBox.configurationPage(),
     "qemu": Qemu.configurationPage(),
     "vmware": VMware.configurationPage(),
@@ -229,7 +227,22 @@ class NodesView(QtWidgets.QTreeWidget):
 
     def _deleteSlot(self, template, source=None):
 
-        reply = QtWidgets.QMessageBox.question(self, "Template", "Delete {} template?".format(template.name()),
-                                               QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
-        if reply == QtWidgets.QMessageBox.Yes:
+        msgbox = QtWidgets.QMessageBox(self)
+        msgbox.setWindowTitle("Delete Template")
+        msgbox.setText(f"Do you want to delete template '{template.name()}'?\n\n"
+                       f"Deleting templates and images is irreversible!\n\n")
+        msgbox.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        delete_all_button = QtWidgets.QPushButton(f"&Delete the template and its image(s)", msgbox)
+        msgbox.addButton(delete_all_button, QtWidgets.QMessageBox.YesRole)
+        delete_template_only_button = QtWidgets.QPushButton(f"&Only delete the template", msgbox)
+        msgbox.addButton(delete_template_only_button, QtWidgets.QMessageBox.NoRole)
+        abort_button = QtWidgets.QPushButton("&Cancel", msgbox)
+        msgbox.addButton(abort_button, QtWidgets.QMessageBox.RejectRole)
+        msgbox.setDefaultButton(abort_button)
+        msgbox.setIcon(QtWidgets.QMessageBox.Question)
+        msgbox.exec_()
+
+        if msgbox.clickedButton() == delete_template_only_button:
             TemplateManager.instance().deleteTemplate(template.id())
+        elif msgbox.clickedButton() == delete_all_button:
+            TemplateManager.instance().deleteTemplate(template.id(), prune_images=True)

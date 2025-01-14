@@ -23,7 +23,7 @@ import re
 from .qt import sip
 import uuid
 
-from .qt import QtCore
+from .qt import QtCore, QtNetwork
 from .controller import Controller
 
 
@@ -78,6 +78,7 @@ class Link(QtCore.QObject):
         self._deleting = False
         self._capture_file_path = None
         self._capture_file = None
+        self._network_manager = None
         self._response_stream = None
         self._capture_compute_id = None
         self._initialized = False
@@ -117,12 +118,17 @@ class Link(QtCore.QObject):
                 else:
                     self._capture_file = QtCore.QFile(self._capture_file_path)
                     self._capture_file.open(QtCore.QFile.WriteOnly)
-                self._response_stream = Controller.instance().get("/projects/{project_id}/links/{link_id}/pcap".format(project_id=self.project().id(), link_id=self._link_id),
-                                                                  None,
-                                                                  showProgress=False,
-                                                                  downloadProgressCallback=self._downloadPcapProgress,
-                                                                  ignoreErrors=True,  # If something is wrong avoid disconnect us from server
-                                                                  timeout=None)
+
+                if self._network_manager is None:
+                    self._network_manager = QtNetwork.QNetworkAccessManager(self)
+                self._response_stream = Controller.instance().get(
+                    "/projects/{project_id}/links/{link_id}/capture/stream".format(project_id=self.project().id(), link_id=self._link_id),
+                    callback=None,
+                    show_progress=False,
+                    download_progress_callback=self._downloadPcapProgress,
+                    timeout=None,
+                    network_manager=self._network_manager
+                )
             log.debug("Has successfully started capturing packets on link {} to '{}'".format(self._link_id, self._capture_file_path))
         else:
             self._response_stream = None
@@ -348,12 +354,35 @@ class Link(QtCore.QObject):
         # let the GUI know about this link has been deleted
         self.delete_link_signal.emit(self._id)
 
+    def resetLink(self):
+        """
+        Resets this link.
+        """
+
+        log.debug("reset link from {} {} to {} {}".format(self._source_node.name(),
+                                                          self._source_port.name(),
+                                                          self._destination_node.name(),
+                                                          self._destination_port.name()))
+
+        Controller.instance().post("/projects/{project_id}/links/{link_id}/reset".format(project_id=self.project().id(),
+                                                                                         link_id=self._link_id),
+                                                                                         self._linkResetCallback)
+
+    def _linkResetCallback(self, result, error=False, **kwargs):
+        """
+        Called after the link is reset.
+        """
+
+        if error:
+            log.error("Error while resetting link: {}".format(result["message"]))
+            return
+
     def startCapture(self, data_link_type, capture_file_name):
         data = {
             "capture_file_name": capture_file_name,
             "data_link_type": data_link_type
         }
-        Controller.instance().post("/projects/{project_id}/links/{link_id}/start_capture".format(project_id=self.project().id(), link_id=self._link_id),
+        Controller.instance().post("/projects/{project_id}/links/{link_id}/capture/start".format(project_id=self.project().id(), link_id=self._link_id),
                                    self._startCaptureCallback,
                                    body=data)
 
@@ -384,7 +413,7 @@ class Link(QtCore.QObject):
             #     except OSError as e:
             #         log.error("Cannot remove file {}: {}".format(self._capture_file_path, e))
         self._capture_file_path = None
-        Controller.instance().post("/projects/{project_id}/links/{link_id}/stop_capture".format(project_id=self.project().id(),
+        Controller.instance().post("/projects/{project_id}/links/{link_id}/capture/stop".format(project_id=self.project().id(),
                                                                                                 link_id=self._link_id),
                                                                                                 self._stopCaptureCallback)
 
