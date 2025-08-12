@@ -42,7 +42,6 @@ class Cloud(Node):
         self._always_on = True
         self._interfaces = {}
         self._cloud_settings = {"ports_mapping": [],
-                                "usage": "",
                                 "remote_console_host": CLOUD_SETTINGS["remote_console_host"],
                                 "remote_console_port": CLOUD_SETTINGS["remote_console_port"],
                                 "remote_console_type": CLOUD_SETTINGS["remote_console_type"],
@@ -140,8 +139,7 @@ class Cloud(Node):
                 port_info += "   Port {name} {description}\n".format(name=port.name(),
                                                                      description=port.description())
 
-        usage = "\n" + self._settings.get("usage")
-        return info + port_info + usage
+        return info + port_info
 
     def configPage(self):
         """

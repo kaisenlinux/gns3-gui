@@ -17,9 +17,7 @@
 
 import os
 import json
-
-from urllib.parse import urlparse
-from .qt import QtCore, qpartial, QtWebSockets, qslot
+from .qt import QtCore, qpartial, QtNetwork, QtWebSockets, qslot
 
 from gns3.controller import Controller
 from gns3.topology import Topology
@@ -80,6 +78,8 @@ class Project(QtCore.QObject):
         self._name = "untitled"
         self._filename = None
 
+        # Due to bug in Qt on some version we need a dedicated network manager
+        self._notification_network_manager = QtNetwork.QNetworkAccessManager()
         self._notification_stream = None
         self._websocket = QtWebSockets.QWebSocket()
 
@@ -324,14 +324,11 @@ class Project(QtCore.QObject):
         """
         Duplicate a project
         """
-        Controller.instance().post(
-            "/projects/{project_id}/duplicate".format(project_id=self._id),
-            qpartial(self._duplicateCallback, callback),
-            body={"name": name, "path": path},
-            progress_text="Duplicating project '{}'...".format(name),
-            timeout=None,
-            wait=True
-        )
+        Controller.instance().post("/projects/{project_id}/duplicate".format(project_id=self._id),
+                                   qpartial(self._duplicateCallback, callback),
+                                   body={"name": name, "path": path},
+                                   progressText="Duplicating project '{}'...".format(name),
+                                   timeout=None)
 
     def _duplicateCallback(self, callback, result, error=False, **kwargs):
         if error:
@@ -387,7 +384,6 @@ class Project(QtCore.QObject):
 
         Full arg list in createHTTPQuery
         """
-
         self._projectHTTPQuery("GET", path, callback, **kwargs)
 
     def post(self, path, callback, body={}, **kwargs):
@@ -426,7 +422,7 @@ class Project(QtCore.QObject):
         """
         self._projectHTTPQuery("DELETE", path, callback, body=body, **kwargs)
 
-    def _projectHTTPQuery(self, method, path, callback, body=None, **kwargs):
+    def _projectHTTPQuery(self, method, path, callback, body={}, **kwargs):
         """
         HTTP query on the remote server
 
@@ -441,7 +437,7 @@ class Project(QtCore.QObject):
         """
 
         path = "/projects/{project_id}{path}".format(project_id=self._id, path=path)
-        Controller.instance().request(method, path, callback, body=body, **kwargs)
+        Controller.instance().createHTTPQuery(method, path, callback, body=body, **kwargs)
 
     def create(self):
         """
@@ -449,7 +445,7 @@ class Project(QtCore.QObject):
         """
         body = {
             "name": self._name,
-            #"path": self.filesDir(),  # deprecated
+            "path": self.filesDir(),
             "grid_size": self._grid_size,
             "drawing_grid_size": self._drawing_grid_size,
             "show_grid": self._show_grid_on_new_project,
@@ -506,7 +502,6 @@ class Project(QtCore.QObject):
         """
         Parse response from API and update the object
         """
-
         self._id = result["project_id"]
         self._name = result["name"]
         self._filename = result.get("filename")
@@ -555,6 +550,7 @@ class Project(QtCore.QObject):
             if not self._notification_stream:
                 self._startListenNotifications()
         self.project_updated_signal.emit()
+
         self.get("/nodes", self._listNodesCallback)
 
     def _listNodesCallback(self, result, error=False, **kwargs):
@@ -592,14 +588,7 @@ class Project(QtCore.QObject):
         self._closing = True
         if self._id:
             self.project_about_to_close_signal.emit()
-            Controller.instance().post(
-                "/projects/{project_id}/close".format(project_id=self._id),
-                self._projectClosedCallback,
-                body={},
-                progress_text="Closing the project",
-                wait=True
-
-            )
+            Controller.instance().post("/projects/{project_id}/close".format(project_id=self._id), self._projectClosedCallback, body={}, progressText="Close the project")
         else:
             # The project is not initialized when we close it
             self._closed = True
@@ -611,13 +600,7 @@ class Project(QtCore.QObject):
         Delete the project from all servers
         """
         self.project_about_to_close_signal.emit()
-        Controller.instance().delete(
-            "/projects/{project_id}".format(project_id=self._id),
-            self._projectClosedCallback,
-            body={},
-            progress_text="Deleting the project",
-            wait=True
-        )
+        Controller.instance().delete("/projects/{project_id}".format(project_id=self._id), self._projectClosedCallback, body={}, progressText="Delete the project")
 
     def _projectClosedCallback(self, result, error=False, server=None, **kwargs):
 
@@ -646,24 +629,22 @@ class Project(QtCore.QObject):
         # Qt websocket before Qt 5.6 doesn't support auth
         if parse_version(QtCore.QT_VERSION_STR) < parse_version("5.6.0") or parse_version(QtCore.PYQT_VERSION_STR) < parse_version("5.6.0") or LocalConfig.instance().experimental():
             path = "/projects/{project_id}/notifications".format(project_id=self._id)
-            self._notification_stream = Controller.instance().request(
-                "GET",
-                path,
-                self._endListenNotificationCallback,
-                download_progress_callback=self._event_received,
-                timeout=None,
-                show_progress=False,
-            )
-            url = urlparse(Controller.instance().getHttpClient().url() + path)
-            log.info(f"Listening for project notifications on {url.scheme}://{url.netloc}{url.path}")
+            self._notification_stream = Controller.instance().createHTTPQuery("GET", path, self._endListenNotificationCallback,
+                                                                                  downloadProgressCallback=self._event_received,
+                                                                                  networkManager=self._notification_network_manager,
+                                                                                  timeout=None,
+                                                                                  showProgress=False,
+                                                                                  ignoreErrors=True)
+            url = Controller.instance().getHttpClient().url() + path
+            log.info("Listening for project notifications on '{}'".format(url))
+
         else:
-            path = "/projects/{project_id}/notifications/ws".format(project_id=self._id)
-            self._notification_stream = Controller.instance().httpClient().connectWebSocket(self._websocket, path)
-            self._notification_stream.textMessageReceived.connect(self._websocket_event_received)
-            self._notification_stream.error.connect(self._websocket_error)
-            self._notification_stream.sslErrors.connect(self._sslErrorsSlot)
-            url = urlparse(self._notification_stream.requestUrl().toString())
-            log.info(f"Listening for project notifications on {url.scheme}://{url.netloc}{url.path}")
+           path = "/projects/{project_id}/notifications/ws".format(project_id=self._id)
+           self._notification_stream = Controller.instance().httpClient().connectWebSocket(self._websocket, path)
+           self._notification_stream.textMessageReceived.connect(self._websocket_event_received)
+           self._notification_stream.error.connect(self._websocket_error)
+           self._notification_stream.sslErrors.connect(self._sslErrorsSlot)
+           log.info("Listening for project notifications on '{}'".format(self._notification_stream.requestUrl().toString()))
 
     def _endListenNotificationCallback(self, result, error=False, **kwargs):
         """
@@ -677,7 +658,8 @@ class Project(QtCore.QObject):
     def _websocket_error(self, error):
         if self._notification_stream:
             log.error("Websocket project notification stream error: {}".format(self._notification_stream.errorString()))
-            self.stopListenNotifications()
+            self._notification_stream = None
+            self._startListenNotifications()
 
     @qslot
     def _sslErrorsSlot(self, ssl_errors):

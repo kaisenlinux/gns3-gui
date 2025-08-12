@@ -48,7 +48,7 @@ class CloudWizard(VMWizard, Ui_CloudNodeWizard):
         """
 
         settings = {"name": self.uiNameLineEdit.text(),
-                    "symbol": "cloud",
+                    "symbol": ":/symbols/cloud.svg",
                     "compute_id": self._compute_id}
 
         return settings

@@ -46,17 +46,14 @@ class DockerVM(Node):
                               "custom_adapters": DOCKER_CONTAINER_SETTINGS["custom_adapters"],
                               "start_command": DOCKER_CONTAINER_SETTINGS["start_command"],
                               "environment": DOCKER_CONTAINER_SETTINGS["environment"],
+                              "aux": None,
                               "console_type": DOCKER_CONTAINER_SETTINGS["console_type"],
                               "console_auto_start": DOCKER_CONTAINER_SETTINGS["console_auto_start"],
-                              "aux_type": DOCKER_CONTAINER_SETTINGS["aux_type"],
                               "console_resolution": DOCKER_CONTAINER_SETTINGS["console_resolution"],
                               "console_http_port": DOCKER_CONTAINER_SETTINGS["console_http_port"],
                               "console_http_path": DOCKER_CONTAINER_SETTINGS["console_http_path"],
                               "extra_hosts": DOCKER_CONTAINER_SETTINGS["extra_hosts"],
-                              "extra_volumes": DOCKER_CONTAINER_SETTINGS["extra_volumes"],
-                              "memory": DOCKER_CONTAINER_SETTINGS["memory"],
-                              "cpus": DOCKER_CONTAINER_SETTINGS["cpus"],
-                              }
+                              "extra_volumes": DOCKER_CONTAINER_SETTINGS["extra_volumes"]}
 
         self.settings().update(docker_vm_settings)
 
@@ -69,10 +66,9 @@ class DockerVM(Node):
 
         info = """Docker container {name} is {state}
   Running on server {host} with port {port}
-  Local ID is {id} and node ID is {node_id}
+  Local ID is {id} and server ID is {node_id}
   Docker image is "{image}"
   Console is on port {console} and type is {console_type}
-  Aux console is on port {aux} and type is {aux_type}
 """.format(name=self.name(),
            id=self.id(),
            node_id=self._node_id,
@@ -81,8 +77,6 @@ class DockerVM(Node):
            port=self.compute().port(),
            console=self._settings["console"],
            console_type=self._settings["console_type"],
-           aux=self._settings["aux"],
-           aux_type=self._settings["aux_type"],
            image=self._settings["image"])
 
         port_info = ""
@@ -125,6 +119,18 @@ class DockerVM(Node):
         """
         from .pages.docker_vm_configuration_page import DockerVMConfigurationPage
         return DockerVMConfigurationPage
+
+    @staticmethod
+    def validateHostname(hostname):
+        """
+        Checks if the hostname is valid.
+
+        :param hostname: hostname to check
+
+        :returns: boolean
+        """
+
+        return DockerVM.isValidRfc1123Hostname(hostname)
 
     @staticmethod
     def defaultSymbol():

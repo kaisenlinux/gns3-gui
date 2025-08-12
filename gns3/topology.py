@@ -24,21 +24,18 @@ import xml.etree.ElementTree as ET
 
 
 from .local_server import LocalServer
-from .qt import QtCore, QtWidgets, qpartial
+from .qt import QtCore, QtWidgets
 
 from .utils.progress_dialog import ProgressDialog
 from .utils.import_project_worker import ImportProjectWorker
 from .dialogs.project_export_wizard import ExportProjectWizard
+from .dialogs.file_editor_dialog import FileEditorDialog
 from .dialogs.project_welcome_dialog import ProjectWelcomeDialog
-from .dialogs.show_readme_dialog import ShowReadmeDialog
 
 from .modules import MODULES
 from .modules.module_error import ModuleError
 from .compute_manager import ComputeManager
 from .controller import Controller
-from .local_config import LocalConfig
-from .settings import GENERAL_SETTINGS
-
 
 import logging
 log = logging.getLogger(__name__)
@@ -130,7 +127,7 @@ class Topology(QtCore.QObject):
         if project:
             self._project.project_updated_signal.connect(self._projectUpdatedSlot)
             self._project.project_creation_error_signal.connect(self._projectCreationErrorSlot)
-            self._project.project_loaded_signal.connect(qpartial(self._projectLoadedSlot, snapshot))
+            self._project.project_loaded_signal.connect(self._projectLoadedSlot)
             self._main_window.setWindowTitle("{name} - GNS3".format(name=self._project.name()))
             self._main_window.uiGraphicsView.setSceneSize(project.sceneWidth(), project.sceneHeight())
         else:
@@ -155,7 +152,7 @@ class Topology(QtCore.QObject):
         self._main_window.updateRecentProjectsSettings(self._project.id(), self._project.name(), self._project.path())
         self._main_window.updateRecentProjectActions()
 
-    def _projectLoadedSlot(self, snapshot):
+    def _projectLoadedSlot(self):
         # when project is loaded we can make updates in GUI
         if self._project is not None:
             self._main_window.uiShowLayersAction.setChecked(self._project.showLayers())
@@ -181,9 +178,7 @@ class Topology(QtCore.QObject):
                     supplier.get('url', None)
                 )
 
-            if snapshot is False:
-                self._displayProjectWelcomeDialog()
-            self._project.project_loaded_signal.disconnect()
+            self._displayProjectWelcomeDialog()
 
     def _displayProjectWelcomeDialog(self):
         variables = self.project().variables()
@@ -193,17 +188,6 @@ class Topology(QtCore.QObject):
                 dialog = ProjectWelcomeDialog(self._main_window, self.project())
                 dialog.show()
                 dialog.exec_()
-
-        settings = LocalConfig.instance().loadSectionSettings("MainWindow", GENERAL_SETTINGS)
-        if settings["auto_open_readme"]:
-            self.project().get("/files/README.txt", self._getReadmeCallback, raw=True)
-
-    def _getReadmeCallback(self, result, error=False, **kwargs):
-        if not error:
-            content = result.decode("utf-8", errors="ignore")
-            dialog = ShowReadmeDialog(self.project(), "README.txt", content, parent=self._main_window)
-            dialog.show()
-            dialog.exec_()
 
     def createLoadProject(self, project_settings):
         """
@@ -263,18 +247,7 @@ class Topology(QtCore.QObject):
     def editReadme(self):
         if self.project() is None:
             return
-
-        from .dialogs.edit_project_dialog import EditProjectDialog
-        dialog = EditProjectDialog(self._main_window)
-        dialog.show()
-        dialog.tabWidget.setCurrentIndex(1)
-        dialog.exec_()
-
-    def showReadme(self):
-        if self.project() is None:
-            return
-
-        dialog = ShowReadmeDialog(self.project(), "README.txt", parent=self._main_window)
+        dialog = FileEditorDialog(self.project(), "README.txt", parent=self._main_window, default="Project title\n\nAuthor: Grace Hopper <grace@example.org>\n\nThis project is about...")
         dialog.show()
         dialog.exec_()
 
@@ -299,9 +272,11 @@ class Topology(QtCore.QObject):
         if not dialog.exec_():
             return
 
-        import_worker = ImportProjectWorker(project_file, name=dialog.getProjectSettings()["project_name"])
+        import_worker = ImportProjectWorker(project_file,
+                                            name=dialog.getProjectSettings()["project_name"],
+                                            path=dialog.getProjectSettings().get("project_files_dir"))
         import_worker.imported.connect(self._projectImportedSlot)
-        progress_dialog = ProgressDialog(import_worker, "Importing project", "Importing project files...", "Cancel", parent=self._main_window, create_thread=False)
+        progress_dialog = ProgressDialog(import_worker, "Importing project", "Importing portable project files...", "Cancel", parent=self._main_window, create_thread=False)
         progress_dialog.show()
         progress_dialog.exec_()
 

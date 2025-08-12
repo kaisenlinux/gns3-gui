@@ -20,7 +20,8 @@
 import json
 
 from ..local_config import LocalConfig
-from ..controller import Controller
+from ..local_server_config import LocalServerConfig
+from ..settings import LOCAL_SERVER_SETTINGS
 
 import logging
 log = logging.getLogger(__name__)
@@ -56,21 +57,21 @@ class Config:
         """
         :returns: Location of the images directory on the server
         """
-        return Controller.instance().settings()["images_path"]
+        return LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)["images_path"]
 
     @property
     def appliances_dir(self):
         """
         :returns: Location of the images directory on the server
         """
-        return Controller.instance().settings()["appliances_path"]
+        return LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)["appliances_path"]
 
     @property
     def symbols_dir(self):
         """
         :returns: Location of the symbols directory
         """
-        return Controller.instance().settings()["symbols_path"]
+        return LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)["symbols_path"]
 
     @property
     def servers(self):

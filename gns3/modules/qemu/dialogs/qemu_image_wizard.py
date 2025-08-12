@@ -16,10 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-Wizard for QEMU disk images.
+Wizard for QEMU images.
 """
 
-from gns3.qt import QtCore, QtGui, QtWidgets
+import os
+
+from gns3.qt import QtCore, QtGui, QtWidgets, QFileDialog
+from .. import Qemu
 from ..ui.qemu_image_wizard_ui import Ui_QemuImageWizard
 
 
@@ -29,18 +32,19 @@ class QemuImageWizard(QtWidgets.QWizard, Ui_QemuImageWizard):
     Wizard to create a Qemu VM.
 
     :param parent: parent widget
-    :param node_or_server: node or server where the image should be created
+    :param server: Server where the image should be created
     :param filename: Default filename of image.
+    :param folder: Default folder for the image. If absent, defaults to Qemu's images folder.
     :param size: Default size (in MiB) for the image.
     """
 
-    def __init__(self, parent, node_or_server, filename="disk", size=30000):
+    def __init__(self, parent, server, filename="disk", folder=None, size=30000):
 
         super().__init__(parent)
 
-        self._node_or_server = node_or_server
+        self._server = server
         self.setupUi(self)
-        self.setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(":/symbols/qemu_guest.svg"))
+        self.setPixmap(QtWidgets.QWizard.LogoPixmap, QtGui.QPixmap(":/icons/qemu.svg"))
 
         # Initialize "constants"
         self._mappings = {
@@ -53,18 +57,44 @@ class QemuImageWizard(QtWidgets.QWizard, Ui_QemuImageWizard):
         }
 
         # isComplete() overrides
-        self.uiNameAndSizeWizardPage.isComplete = self._uiNameAndSizeWizardPage_isComplete
-        self.uiFormatWizardPage.isComplete = self._uiFormatWizardPage_isComplete
+        self.uiSizeAndLocationWizardPage.isComplete = self._uiSizeAndLocationWizardPage_isComplete
+        self.uiBinaryWizardPage.isComplete = self._uiBinaryWizardPage_isComplete
 
         # Signal connections
         self.uiFormatRadios.buttonClicked.connect(self._formatChangedSlot)
-        self.uiDiskFilenameLineEdit.textChanged.connect(self._filenameChangedSlot)
+        self.uiLocationLineEdit.textChanged.connect(self._locationChangedSlot)
+        self.uiLocationBrowseToolButton.clicked.connect(self._browserSlot)
 
         # Finish setup
         self.page(self.pageIds()[-1]).validatePage = self._createDisk
-        self.uiDiskFilenameLineEdit.setText(filename)
+
+        # Default values
+        Qemu.instance().getQemuImgBinariesFromServer(self._server,
+                                                     self._getQemuImgBinariesFromServerCallback)
+        self.uiLocationLineEdit.setText(filename)
         self.uiSizeSpinBox.setValue(size)
         self._formatChangedSlot(self.uiFormatQcow2Radio)
+
+    def _getQemuImgBinariesFromServerCallback(self, result, error=False, **kwargs):
+        """
+        Callback for getQemuImgBinariesFromServer.
+
+        :param result: server response
+        :param error: indicates an error (boolean)
+        """
+
+        if error:
+            QtWidgets.QMessageBox.critical(self, "Qemu-img binaries", "{}".format(result["message"]))
+        else:
+            self.uiBinaryComboBox.clear()
+            for qemu in result:
+                if qemu["version"]:
+                    self.uiBinaryComboBox.addItem(
+                        "{path} (v{version})".format(path=qemu["path"], version=qemu["version"]), qemu["path"]
+                    )
+                else:
+                    self.uiBinaryComboBox.addItem("{path}".format(path=qemu["path"]), qemu["path"])
+        self.uiBinaryWizardPage.completeChanged.emit()
 
     def _getCreateDiskServerCallback(self, result, error=False, **kwargs):
         """
@@ -75,34 +105,45 @@ class QemuImageWizard(QtWidgets.QWizard, Ui_QemuImageWizard):
         if error:
             QtWidgets.QMessageBox.critical(self, "Create disk", "{}".format(result["message"]))
 
-    def _uiNameAndSizeWizardPage_isComplete(self):
+    def _uiSizeAndLocationWizardPage_isComplete(self):
+        return not "" == self.uiLocationLineEdit.text()
 
-        return not "" == self.uiDiskFilenameLineEdit.text()
+    def _uiBinaryWizardPage_isComplete(self):
+        return self.uiFormatRadios.checkedButton() is not None and self.uiBinaryComboBox.currentData() is not None
 
-    def _uiFormatWizardPage_isComplete(self):
+    def _locationChangedSlot(self, new_value):
+        self.uiSizeAndLocationWizardPage.completeChanged.emit()
 
-        return self.uiFormatRadios.checkedButton() is not None
-
-    def _filenameChangedSlot(self, new_value):
-
-        self.uiNameAndSizeWizardPage.completeChanged.emit()
+    def _browserSlot(self):
+        path, name_filter = QFileDialog.getSaveFileName(
+            self,
+            'Image location',
+            self.uiLocationLineEdit.text(),
+            '{0} files (*{1});;All files (*)'.format(
+                self.uiFormatRadios.checkedButton().text(),
+                self._mappings[self.uiFormatRadios.checkedButton()][1]
+            ),
+            options=QFileDialog.DontConfirmOverwrite
+        )
+        if path:
+            self.uiLocationLineEdit.setText(path)
 
     def _formatChangedSlot(self, new_format):
-
-        filename = self.uiDiskFilenameLineEdit.text().strip()
+        dir, filename = os.path.split(self.uiLocationLineEdit.text())
         try:
             filename = filename[:filename.rindex('.')] + self._mappings[new_format][1]
         except ValueError:
             # The file has no extension; Just give it one
             filename = filename + self._mappings[new_format][1]
-        self.uiDiskFilenameLineEdit.setText(filename)
-        self.uiFormatWizardPage.completeChanged.emit()
+        self.uiLocationLineEdit.setText(os.path.join(dir, filename))
+        self.uiBinaryWizardPage.completeChanged.emit()
 
     def _createDisk(self):
-
         selected_format = self.uiFormatRadios.checkedButton()
-        disk_image_filename = self.uiDiskFilenameLineEdit.text().strip()
+
         options = {}
+        options["path"] = self.uiLocationLineEdit.text()
+        options["qemu_img"] = self.uiBinaryComboBox.currentData()
         options["format"] = self._mappings[selected_format][0]
         options["size"] = self.uiSizeSpinBox.value()
 
@@ -173,12 +214,11 @@ class QemuImageWizard(QtWidgets.QWizard, Ui_QemuImageWizard):
                     }
                     options['subformat'] = two + size_mode_mappings[size_mode]
 
-        self._node_or_server.createDiskImage(disk_image_filename, options, self._getCreateDiskServerCallback)
+        Qemu.instance().createDiskImage(self._server, self._getCreateDiskServerCallback, options)
         return True
 
     def nextId(self):
-
-        if self.page(self.currentId()) == self.uiFormatWizardPage:
+        if self.page(self.currentId()) == self.uiBinaryWizardPage:
             current_format = self.uiFormatRadios.checkedButton()
             if not current_format:
                 return self.currentId()

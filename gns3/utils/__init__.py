@@ -94,7 +94,7 @@ def parse_version(version):
     return tuple(version)
 
 
-def human_size(size):
+def human_filesize(size):
     for unit in ['B', 'KB', 'MB', 'GB']:
         if abs(size) < 1024.0:
             return "%3.1f %s" % (size, unit)

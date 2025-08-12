@@ -21,14 +21,13 @@ import tempfile
 import json
 import pathlib
 
-from urllib.parse import urlparse
-from .qt import QtCore, QtGui, QtWebSockets, qpartial, qslot
-
+from .qt import QtCore, QtNetwork, QtGui, QtWidgets, QtWebSockets, qpartial, qslot
 from .symbol import Symbol
-from .local_config import LocalConfig
-from .settings import CONTROLLER_SETTINGS
+from .local_server_config import LocalServerConfig
+from .settings import LOCAL_SERVER_SETTINGS
+
+from gns3.local_config import LocalConfig
 from gns3.utils import parse_version
-from gns3.http_client import HTTPClient
 
 import logging
 log = logging.getLogger(__name__)
@@ -43,7 +42,6 @@ class Controller(QtCore.QObject):
     disconnected_signal = QtCore.Signal()
     connection_failed_signal = QtCore.Signal()
     project_list_updated_signal = QtCore.Signal()
-    image_list_updated_signal = QtCore.Signal()
 
     def __init__(self):
 
@@ -58,47 +56,16 @@ class Controller(QtCore.QObject):
         self._error_dialog = None
         self._display_error = True
         self._projects = []
-        self._images = []
         self._websocket = QtWebSockets.QWebSocket()
 
         # If we do multiple call in order to download the same symbol we queue them
         self._static_asset_download_queue = {}
-
-        self._loadSettings()
-
-    def settings(self):
-        """
-        Returns the graphics view settings.
-
-        :returns: settings dictionary
-        """
-
-        return self._settings
-
-    def _loadSettings(self):
-        """
-        Loads the settings from the persistent settings file.
-        """
-
-        self._settings = LocalConfig.instance().loadSectionSettings(self.__class__.__name__, CONTROLLER_SETTINGS)
-
-    def setSettings(self, new_settings):
-        """
-        Set new controller settings.
-
-        :param new_settings: settings dictionary
-        """
-
-        # save the settings
-        self._settings.update(new_settings)
-        LocalConfig.instance().saveSectionSettings(self.__class__.__name__, self._settings)
 
     def host(self):
 
         return self._http_client.host()
 
     def version(self):
-
         return self._version
 
     def isRemote(self):
@@ -106,7 +73,8 @@ class Controller(QtCore.QObject):
         :returns Boolean: True if the controller is remote
         """
 
-        return self._settings["remote"]
+        settings = LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)
+        return not settings["auto_start"]
 
     def connecting(self):
         """
@@ -136,8 +104,10 @@ class Controller(QtCore.QObject):
 
         self._http_client = http_client
         if self._http_client:
-            self._http_client.connected_signal.connect(self._httpClientConnectedSlot)
-            self._http_client.disconnected_signal.connect(self._httpClientDisconnectedSlot)
+            if self.isRemote():
+                self._http_client.setMaxTimeDifferenceBetweenQueries(120)
+            self._http_client.connection_connected_signal.connect(self._httpClientConnectedSlot)
+            self._http_client.connection_disconnected_signal.connect(self._httpClientDisconnectedSlot)
             self._connectingToServer()
 
     def getHttpClient(self):
@@ -155,14 +125,6 @@ class Controller(QtCore.QObject):
         self._display_error = val
         self._first_error = True
 
-    def connect(self):
-        """
-        Connect to controller
-        """
-
-        self._http_client = HTTPClient(self._settings)
-        Controller.instance().setHttpClient(self._http_client)
-
     def _connectingToServer(self):
         """
         Connection process as started
@@ -170,15 +132,45 @@ class Controller(QtCore.QObject):
 
         self._connected = False
         self._connecting = True
-        self.httpClient().connectToServer()
+        status, json_data = self.httpClient().getSynchronous('GET', '/version', timeout=60)
+        self._versionGetSlot(json_data, status is None or status >= 300)
 
     def _httpClientDisconnectedSlot(self):
-
         if self._connected:
             self._connected = False
             self.disconnected_signal.emit()
             self._connectingToServer()
             self.stopListenNotifications()
+
+    def _versionGetSlot(self, result, error=False, **kwargs):
+        """
+        Called after the initial version get
+        """
+
+        if error:
+            if self._first_error:
+                self._connecting = False
+                self.connection_failed_signal.emit()
+                if self._display_error:
+                    self._error_dialog = QtWidgets.QMessageBox(self.parent())
+                    self._error_dialog.setWindowModality(QtCore.Qt.ApplicationModal)
+                    self._error_dialog.setWindowTitle("Connection to server")
+                    if result and "message" in result:
+                        self._error_dialog.setText("Error when connecting to the GNS3 server:\n{}".format(result["message"]))
+                    else:
+                        self._error_dialog.setText("Cannot connect to the GNS3 server")
+                    self._error_dialog.setIcon(QtWidgets.QMessageBox.Critical)
+                    self._error_dialog.show()
+            # Try to connect again in 5 seconds
+            QtCore.QTimer.singleShot(5000, qpartial(self.get, '/version', self._versionGetSlot, showProgress=self._first_error))
+            self._first_error = False
+        else:
+            self._first_error = True
+            if self._error_dialog:
+                self._error_dialog.reject()
+                self._error_dialog = None
+            self._version = result.get("version")
+            self._http_client.connection_connected_signal.emit()
 
     def _httpClientConnectedSlot(self):
 
@@ -190,16 +182,16 @@ class Controller(QtCore.QObject):
             self._startListenNotifications()
 
     def post(self, *args, **kwargs):
-        return self.request("POST", *args, **kwargs)
+        return self.createHTTPQuery("POST", *args, **kwargs)
 
     def get(self, *args, **kwargs):
-        return self.request("GET", *args, **kwargs)
+        return self.createHTTPQuery("GET", *args, **kwargs)
 
     def put(self, *args, **kwargs):
-        return self.request("PUT", *args, **kwargs)
+        return self.createHTTPQuery("PUT", *args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        return self.request("DELETE", *args, **kwargs)
+        return self.createHTTPQuery("DELETE", *args, **kwargs)
 
     def getCompute(self, path, compute_id, *args, **kwargs):
         """
@@ -235,13 +227,31 @@ class Controller(QtCore.QObject):
                 return compute_id
         return compute_id
 
-    def request(self, method, path, *args, **kwargs):
+    def getEndpoint(self, path, compute_id, *args, **kwargs):
         """
-        Forward the query to the HTTP client or controller depending on the path
+        API post on a specific compute
+        """
+
+        compute_id = self.__fix_compute_id(compute_id)
+        path = "/computes/endpoint/{}{}".format(compute_id, path)
+        return self.get(path, *args, **kwargs)
+
+    def putCompute(self, path, compute_id, *args, **kwargs):
+        """
+        API put on a specific compute
+        """
+
+        compute_id = self.__fix_compute_id(compute_id)
+        path = "/computes/{}{}".format(compute_id, path)
+        return self.put(path, *args, **kwargs)
+
+    def createHTTPQuery(self, method, path, *args, **kwargs):
+        """
+        Forward the query to the HTTP client or controller depending of the path
         """
 
         if self._http_client:
-            return self._http_client.sendRequest(method, path, *args, **kwargs)
+            return self._http_client.createHTTPQuery(method, path, *args, **kwargs)
 
     @staticmethod
     def instance():
@@ -274,10 +284,9 @@ class Controller(QtCore.QObject):
             self._static_asset_download_queue[path].append((callback, fallback, ))
         else:
             self._static_asset_download_queue[path] = [(callback, fallback, )]
-            self._http_client.sendRequest("GET", url, qpartial(self._getStaticCallback, url, path), raw=True)
+            self._http_client.createHTTPQuery("GET", url, qpartial(self._getStaticCallback, url, path))
 
-    def _getStaticCallback(self, url, path, result, error=False, **kwargs):
-
+    def _getStaticCallback(self, url, path, result, error=False, raw_body=None, **kwargs):
         if path not in self._static_asset_download_queue:
             return
 
@@ -293,7 +302,7 @@ class Controller(QtCore.QObject):
             return
         try:
             with open(path, "wb+") as f:
-                f.write(result)
+                f.write(raw_body)
         except OSError as e:
             log.error("Can't write to {}: {}".format(path, str(e)))
             return
@@ -357,14 +366,9 @@ class Controller(QtCore.QObject):
 
     def uploadSymbol(self, symbol_id, path):
 
-        self.post(
-            "/symbols/" + symbol_id + "/raw",
-            qpartial(self._finishSymbolUpload, path),
-            body=pathlib.Path(path),
-            progress_text="Uploading {}".format(symbol_id),
-            timeout=None,
-            wait=True
-        )
+        self.post("/symbols/" + symbol_id + "/raw",
+                  qpartial(self._finishSymbolUpload, path),
+                  body=pathlib.Path(path), progressText="Uploading {}".format(symbol_id), timeout=None)
 
     def _finishSymbolUpload(self, path, result, error=False, **kwargs):
 
@@ -393,17 +397,6 @@ class Controller(QtCore.QObject):
         if callback:
             callback(result, error=error, **kwargs)
 
-
-    def createDiskImage(self, disk_name, options, callback):
-        """
-        Create a disk image on the controller
-
-        :param callback: callback for the reply from the server
-        """
-
-        self.post(f"/images/qemu/{disk_name}", callback, body=options)
-
-
     @qslot
     def refreshProjectList(self, *args):
         self.get("/projects", self._projectListCallback)
@@ -416,50 +409,32 @@ class Controller(QtCore.QObject):
     def projects(self):
         return self._projects
 
-    @qslot
-    def refreshImageList(self, *args):
-        self.get("/images", self._imageListCallback)
-
-    def _imageListCallback(self, result, error=False, **kwargs):
-        if not error:
-            self._images = result
-        self.image_list_updated_signal.emit()
-
-    def images(self):
-        return self._images
-
     def _startListenNotifications(self):
         if not self.connected():
             return
 
+        # Due to bug in Qt on some version we need a dedicated network manager
+        self._notification_network_manager = QtNetwork.QNetworkAccessManager()
         self._notification_stream = None
 
         # Qt websocket before Qt 5.6 doesn't support auth
         if parse_version(QtCore.QT_VERSION_STR) < parse_version("5.6.0") or parse_version(QtCore.PYQT_VERSION_STR) < parse_version("5.6.0") or LocalConfig.instance().experimental():
-            self._notification_stream = Controller.instance().request(
-                "GET",
-                "/notifications",
-                self._endListenNotificationCallback,
-                download_progress_callback=self._event_received,
-                timeout=None,
-                show_progress=False
-            )
-            url = urlparse(self._http_client.url() + '/notifications')
-            log.info(f"Listening for controller notifications on {url.scheme}://{url.netloc}{url.path}")
+
+            self._notification_stream = Controller.instance().createHTTPQuery("GET", "/notifications", self._endListenNotificationCallback,
+                                                                              downloadProgressCallback=self._event_received,
+                                                                              networkManager=self._notification_network_manager,
+                                                                              timeout=None,
+                                                                              showProgress=False,
+                                                                              ignoreErrors=True)
+            url = self._http_client.url() + '/notifications'
+            log.info("Listening for controller notifications on '{}'".format(url))
+
         else:
             self._notification_stream = self._http_client.connectWebSocket(self._websocket, "/notifications/ws")
             self._notification_stream.textMessageReceived.connect(self._websocket_event_received)
             self._notification_stream.error.connect(self._websocket_error)
             self._notification_stream.sslErrors.connect(self._sslErrorsSlot)
-            self._notification_stream.disconnected.connect(self._websocket_disconnected)
-            url = urlparse(self._notification_stream.requestUrl().toString())
-            log.info(f"Listening for controller notifications on {url.scheme}://{url.netloc}{url.path}")
-
-    def _websocket_disconnected(self):
-
-        self._connected = False
-        self.disconnected_signal.emit()
-        self.stopListenNotifications()
+            log.info("Listening for controller notifications on '{}'".format(self._notification_stream.requestUrl().toString()))
 
     def stopListenNotifications(self):
         if self._notification_stream:
@@ -467,6 +442,7 @@ class Controller(QtCore.QObject):
             stream = self._notification_stream
             self._notification_stream = None
             stream.abort()
+            self._notification_network_manager = None
 
     def _endListenNotificationCallback(self, result, error=False, **kwargs):
         """
@@ -478,10 +454,10 @@ class Controller(QtCore.QObject):
 
     @qslot
     def _websocket_error(self, error):
-
         if self._notification_stream:
             log.error("Websocket controller notification stream error: {}".format(self._notification_stream.errorString()))
-            self.stopListenNotifications()
+            self._notification_stream = None
+            self._startListenNotifications()
 
     @qslot
     def _sslErrorsSlot(self, ssl_errors):

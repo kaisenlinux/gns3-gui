@@ -205,7 +205,7 @@ class Ui_DockerVMWizard(object):
         self.uiRemoteServersGroupBox.setTitle(_translate("DockerVMWizard", "Remote server"))
         self.uiRemoteServersLabel.setText(_translate("DockerVMWizard", "Run on:"))
         self.uiImageWizardPage.setTitle(_translate("DockerVMWizard", "Docker Virtual Machine"))
-        self.uiImageWizardPage.setSubTitle(_translate("DockerVMWizard", "Please choose a Docker virtual machine from the list or provide an image name on Docker hub."))
+        self.uiImageWizardPage.setSubTitle(_translate("DockerVMWizard", "Please choose a Docker virtual machine from the list or provide an image name on a Docker repository."))
         self.uiExistingImageRadioButton.setText(_translate("DockerVMWizard", "Existing image"))
         self.uiNewImageRadioButton.setText(_translate("DockerVMWizard", "New image"))
         self.uiImageListLabel.setText(_translate("DockerVMWizard", "Image list:"))

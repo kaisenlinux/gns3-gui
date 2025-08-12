@@ -1,3 +1,15 @@
+gns3-gui (2:2.2.54-1kaisen) kaisen-packages; urgency=medium
+
+  * Revert to 2.x.x because 3.x.x is unstable on Kaisen
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Tue, 12 Aug 2025 20:35:14 +0200
+
+gns3-gui (3.0.5-1kaisen) kaisen-packages; urgency=medium
+
+  * Import the new upstream release
+
+ -- Kevin Chevreuil - Kaisen <kaisen@kaisenlinux.org>  Fri, 08 Aug 2025 12:54:47 +0200
+
 gns3-gui (3.0.2-2kaisen) kaisen-packages; urgency=medium
 
   * Fix bad dependancy

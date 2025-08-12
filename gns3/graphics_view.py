@@ -100,6 +100,8 @@ class GraphicsView(QtWidgets.QGraphicsView):
         self._node_grid_color = self.DEFAULT_NODE_GRID_COLOR
         self._last_mouse_position = None
         self._topology = Topology.instance()
+        self._background_warning_msgbox = QtWidgets.QErrorMessage(self)
+        self._background_warning_msgbox.setWindowTitle("Layer position")
 
         # set the scene
         scene = QtWidgets.QGraphicsScene(parent=self)
@@ -831,18 +833,6 @@ class GraphicsView(QtWidgets.QGraphicsView):
             menu.addAction(console_edit_action)
 
         if True in list(map(lambda item: isinstance(item, NodeItem), items)):
-            isolate_action = QtWidgets.QAction("Isolate", menu)
-            isolate_action.setIcon(get_icon("link-pause.svg"))
-            isolate_action.triggered.connect(self.isolateActionSlot)
-            menu.addAction(isolate_action)
-
-        if True in list(map(lambda item: isinstance(item, NodeItem), items)):
-            unisolate_action = QtWidgets.QAction("Un-isolate", menu)
-            unisolate_action.setIcon(get_icon("link-start.svg"))
-            unisolate_action.triggered.connect(self.unisolateActionSlot)
-            menu.addAction(unisolate_action)
-
-        if True in list(map(lambda item: isinstance(item, NodeItem), items)):
             # Action: Change hostname
             change_hostname_action = QtWidgets.QAction("Change hostname", menu)
             change_hostname_action.setIcon(get_icon("show-hostname.svg"))
@@ -1021,26 +1011,6 @@ class GraphicsView(QtWidgets.QGraphicsView):
             if isinstance(item, NodeItem) and hasattr(item.node(), "reload") and item.node().initialized():
                 item.node().reload()
 
-    def isolateActionSlot(self):
-        """
-        Slot to receive events from the isolate action in the
-        contextual menu.
-        """
-
-        for item in self.scene().selectedItems():
-            if isinstance(item, NodeItem) and hasattr(item.node(), "isolate") and item.node().initialized():
-                item.node().isolate()
-
-    def unisolateActionSlot(self):
-        """
-        Slot to receive events from the unisolate action in the
-        contextual menu.
-        """
-
-        for item in self.scene().selectedItems():
-            if isinstance(item, NodeItem) and hasattr(item.node(), "unisolate") and item.node().initialized():
-                item.node().unisolate()
-
     def configureActionSlot(self):
         """
         Slot to receive events from the configure action in the
@@ -1068,6 +1038,10 @@ class GraphicsView(QtWidgets.QGraphicsView):
                     if not new_hostname.strip():
                         QtWidgets.QMessageBox.critical(self, "Change hostname", "Hostname cannot be blank")
                         continue
+                    if hasattr(item.node(), "validateHostname") and not LocalConfig.instance().experimental():
+                        if not item.node().validateHostname(new_hostname):
+                            QtWidgets.QMessageBox.critical(self, "Change hostname", "Invalid name detected for this node: {}".format(new_hostname))
+                            continue
                     item.node().update({"name": new_hostname})
 
     def changeSymbolActionSlot(self):
@@ -1100,7 +1074,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
                     break
 
                 if os.path.exists(node_dir):
-                    log.debug(f"Open {node_dir} in file manager")
+                    log.debug("Open %s in file manager")
                     if QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(node_dir)) is False:
                         QtWidgets.QMessageBox.critical(self, "Show in file manager", "Failed to open {}".format(node_dir))
                         break
@@ -1281,7 +1255,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
             path, _ = QtWidgets.QFileDialog.getOpenFileName(self,
                                                             "Import {}".format(os.path.basename(config_file)),
                                                             self._import_config_directory,
-                                                            "All files (*.*);;Config files (*.cfg)",
+                                                            "All files (*);;Config files (*.cfg)",
                                                             "Config files (*.cfg)")
             if not path:
                 continue
@@ -1328,7 +1302,7 @@ class GraphicsView(QtWidgets.QGraphicsView):
 
         for item in items:
             for config_file in item.node().configFiles():
-                path, ok = QtWidgets.QFileDialog.getSaveFileName(self, "Export file", os.path.join(self._export_config_directory, item.node().name() + "_" + os.path.basename(config_file)), "All files (*.*);;Config files (*.cfg)")
+                path, ok = QtWidgets.QFileDialog.getSaveFileName(self, "Export file", os.path.join(self._export_config_directory, item.node().name() + "_" + os.path.basename(config_file)), "All files (*);;Config files (*.cfg)")
                 if not path:
                     continue
                 self._export_config_directory = os.path.dirname(path)

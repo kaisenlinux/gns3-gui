@@ -146,7 +146,7 @@
             },
             "image": {
                 "type": "string",
-                "title": "Docker image in the Docker Hub"
+                "title": "Docker image on the Docker repository"
             },
             "start_command": {
                 "type": "string",

@@ -54,10 +54,10 @@ class EthernetSwitchWizard(VMWizard, Ui_EthernetSwitchWizard):
                           "name": "Ethernet{}".format(port_number),
                           "type": "access",
                           "vlan": 1,
-                          "ethertype": "0x8100"})
+                          "ethertype": ""})
 
         settings = {"name": self.uiNameLineEdit.text(),
-                    "symbol": "ethernet_switch",
+                    "symbol": ":/symbols/ethernet_switch.svg",
                     "category": Node.switches,
                     "compute_id": self._compute_id,
                     "ports_mapping": ports}

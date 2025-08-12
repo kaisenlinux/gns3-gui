@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pytest
-import sys
 
 from unittest.mock import MagicMock
 
@@ -24,12 +23,9 @@ from unittest.mock import MagicMock
 @pytest.fixture
 def real_main_window():
     from gns3.main_window import MainWindow
-    main_window = MainWindow()
-    return main_window
+    return MainWindow()
 
 
-# Windows GUI doesn't support a local server starting with v3.0
-@pytest.mark.skipif(sys.platform.startswith('win') is True, reason='Not for windows')
 def test_main_window_settings_changed_signal(real_main_window):
     settings = real_main_window.settings()
     signal = MagicMock()
@@ -38,12 +34,10 @@ def test_main_window_settings_changed_signal(real_main_window):
     assert signal.emit.called
 
 
-# Windows GUI doesn't support a local server starting with v3.0
-@pytest.mark.skipif(sys.platform.startswith('win') is True, reason='Not for windows')
 def test_main_window_settings_changed_slot(real_main_window):
     instance = MagicMock()
     manager = MagicMock()
     manager.instance.return_value = instance
-    real_main_window._appliance_manager = manager
+    real_main_window._appliance_manager =  manager
     real_main_window.settingsChangedSlot()
     assert instance.refresh.called

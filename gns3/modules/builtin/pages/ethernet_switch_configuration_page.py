@@ -127,15 +127,14 @@ class EthernetSwitchConfigurationPage(QtWidgets.QWidget, Ui_ethernetSwitchConfig
         if port_type == "qinq":
             port_ethertype = self.uiPortEtherTypeComboBox.currentText()
         else:
-            port_ethertype = "0x8100"
+            port_ethertype = ""
 
         if port in self._ports:
             # update a given entry in the tree widget
             item = self.uiPortsTreeWidget.findItems(str(port), QtCore.Qt.MatchFixedString)[0]
             item.setText(1, str(vlan))
             item.setText(2, port_type)
-            if port_ethertype:
-                item.setText(3, port_ethertype)
+            item.setText(3, port_ethertype)
 
         else:
             # add a new entry in the tree widget
@@ -143,8 +142,7 @@ class EthernetSwitchConfigurationPage(QtWidgets.QWidget, Ui_ethernetSwitchConfig
             item.setText(0, str(port))
             item.setText(1, str(vlan))
             item.setText(2, port_type)
-            if port_ethertype:
-                item.setText(3, port_ethertype)
+            item.setText(3, port_ethertype)
             self.uiPortsTreeWidget.addTopLevelItem(item)
 
         self._ports[port] = {"name": "Ethernet{}".format(port),
@@ -226,9 +224,7 @@ class EthernetSwitchConfigurationPage(QtWidgets.QWidget, Ui_ethernetSwitchConfig
             item.setText(0, str(port_info["port_number"]))
             item.setText(1, str(port_info.get("vlan", 1)))
             item.setText(2, port_info.get("type", "access"))
-            port_ethertype = port_info.get("ethertype")
-            if port_ethertype:
-                item.setText(3, port_ethertype)
+            item.setText(3, port_info.get("ethertype", ""))
             self.uiPortsTreeWidget.addTopLevelItem(item)
             self._ports[port_info["port_number"]] = port_info
 

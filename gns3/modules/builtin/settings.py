@@ -34,13 +34,12 @@ BUILTIN_SETTINGS = {
 
 CLOUD_SETTINGS = {
     "name": "",
-    "usage": "",
     "remote_console_host": "127.0.0.1",
     "remote_console_port": 23,
     "remote_console_type": "none",
     "remote_console_http_path": "/",
     "default_name_format": "Cloud{0}",
-    "symbol": "cloud",
+    "symbol": ":/symbols/cloud.svg",
     "category": Node.end_devices,
     "ports_mapping": [],
     "node_type": "cloud"
@@ -49,7 +48,7 @@ CLOUD_SETTINGS = {
 ETHERNET_HUB_SETTINGS = {
     "name": "",
     "default_name_format": "Hub{0}",
-    "symbol": "hub",
+    "symbol": ":/symbols/hub.svg",
     "category": Node.switches,
     "ports_mapping": [],
     "node_type": "ethernet_hub"
@@ -58,7 +57,7 @@ ETHERNET_HUB_SETTINGS = {
 ETHERNET_SWITCH_SETTINGS = {
     "name": "",
     "default_name_format": "Switch{0}",
-    "symbol": "ethernet_switch",
+    "symbol": ":/symbols/ethernet_switch.svg",
     "category": Node.switches,
     "console_type": "none",
     "ports_mapping": [],

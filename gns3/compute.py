@@ -37,7 +37,6 @@ class Compute:
         self._password = None
         self._cpu_usage_percent = None
         self._memory_usage_percent = None
-        self._disk_usage_percent = None
         self._capabilities = {"node_types": []}
         self._last_error = None
 
@@ -202,24 +201,6 @@ class Compute:
         """
 
         return self._memory_usage_percent
-
-    def setDiskUsagePercent(self, usage):
-        """
-        Sets the compute disk usage.
-
-        :returns: disk usage (integer)
-        """
-
-        self._disk_usage_percent = usage
-
-    def diskUsagePercent(self):
-        """
-        Returns the compute disk usage.
-
-        :param usage: disk usage (integer)
-        """
-
-        return self._disk_usage_percent
 
     def capabilities(self):
         """

@@ -31,7 +31,7 @@ VPCS_NODES_SETTINGS = {
     "base_script_file": "",
     "console_type": "telnet",
     "console_auto_start": False,
-    "symbol": "vpcs_guest",
+    "symbol": ":/symbols/vpcs_guest.svg",
     "category": Node.end_devices,
     "node_type": "vpcs"
 }

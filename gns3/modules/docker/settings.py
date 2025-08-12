@@ -29,7 +29,7 @@ DOCKER_SETTINGS = {
 DOCKER_CONTAINER_SETTINGS = {
     "default_name_format": "{name}-{0}",
     "usage": "",
-    "symbol": "docker_guest",
+    "symbol": ":/symbols/docker_guest.svg",
     "category": Node.end_devices,
     "start_command": "",
     "name": "",
@@ -40,13 +40,10 @@ DOCKER_CONTAINER_SETTINGS = {
     "environment": "",
     "console_type": "telnet",
     "console_auto_start": False,
-    "aux_type": "none",
     "console_resolution": "1024x768",
     "console_http_port": 80,
     "console_http_path": "/",
     "extra_hosts": "",
     "extra_volumes": [],
-    "memory": 0,
-    "cpus": 0,
     "node_type": "docker"
 }

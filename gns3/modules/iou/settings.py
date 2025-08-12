@@ -32,7 +32,7 @@ IOU_DEVICE_SETTINGS = {
     "default_name_format": "IOU{0}",
     "usage": "",
     "path": "",
-    "symbol": "multilayer_switch",
+    "symbol": ":/symbols/multilayer_switch.svg",
     "category": Node.routers,
     "startup_config": "",
     "private_config": "",

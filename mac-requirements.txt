@@ -1,3 +1,3 @@
--r requirements.txt
+-rrequirements.txt
 
 PyQt5==5.15.11

@@ -98,7 +98,6 @@ background-none;
     <addaction name="uiImportProjectAction"/>
     <addaction name="separator"/>
     <addaction name="uiOpenApplianceAction"/>
-    <addaction name="uiImageManagementAction"/>
     <addaction name="uiNewTemplateAction"/>
     <addaction name="separator"/>
     <addaction name="uiQuitAction"/>
@@ -138,7 +137,6 @@ background-none;
     <addaction name="uiShowGridAction"/>
     <addaction name="uiResetPortLabelsAction"/>
     <addaction name="uiShowPortNamesAction"/>
-    <addaction name="uiShowReadmeAction"/>
     <addaction name="uiLockAllAction"/>
     <addaction name="separator"/>
     <addaction name="uiResetGUIStateAction"/>
@@ -1210,7 +1208,7 @@ background-none;
      <normaloff>:/icons/export.svg</normaloff>:/icons/export.svg</iconset>
    </property>
    <property name="text">
-    <string>Export project</string>
+    <string>Export portable project</string>
    </property>
   </action>
   <action name="uiImportProjectAction">
@@ -1219,16 +1217,16 @@ background-none;
      <normaloff>:/icons/import.svg</normaloff>:/icons/import.svg</iconset>
    </property>
    <property name="text">
-    <string>Import project</string>
+    <string>Import portable project</string>
    </property>
   </action>
-  <action name="uiShowReadmeAction">
+  <action name="uiEditReadmeAction">
    <property name="icon">
     <iconset resource="../../resources/resources.qrc">
      <normaloff>:/icons/edit.svg</normaloff>:/icons/edit.svg</iconset>
    </property>
    <property name="text">
-    <string>Show readme</string>
+    <string>Edit readme</string>
    </property>
   </action>
   <action name="uiAcademyAction">
@@ -1307,32 +1305,6 @@ background-none;
    </property>
    <property name="text">
     <string>New template</string>
-   </property>
-  </action>
-  <action name="uiEditReadmeAction">
-   <property name="icon">
-    <iconset resource="../../resources/resources.qrc">
-     <normaloff>:/icons/edit.svg</normaloff>:/icons/edit.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Edit readme</string>
-   </property>
-   <property name="toolTip">
-    <string>Edit readme</string>
-   </property>
-  </action>
-  <action name="uiResetConsoleAllAction">
-   <property name="text">
-    <string>Reset all console connections</string>
-   </property>
-  </action>
-  <action name="uiImageManagementAction">
-   <property name="icon">
-    <iconset resource="../../resources/resources.qrc">
-     <normaloff>:/icons/applications.svg</normaloff>:/icons/applications.svg</iconset>
-   </property>
-   <property name="text">
-    <string>Image management</string>
    </property>
   </action>
   <action name="uiResetDocksAction">

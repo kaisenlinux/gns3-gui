@@ -61,11 +61,11 @@ class ProjectWelcomeDialog(QtWidgets.QDialog, Ui_ProjectWelcomeDialog):
             self.gridLayout.addWidget(valueEdit, i, 1)
 
     def _loadReadme(self):
-        self._project.get("/files/README.txt", self._loadedReadme, raw=True)
+        self._project.get("/files/README.txt", self._loadedReadme)
 
-    def _loadedReadme(self, result, error=False, context={}, **kwargs):
+    def _loadedReadme(self, result, error=False, raw_body=None, context={}, **kwargs):
         if not error:
-            self.label.setText(result.decode("utf-8"))
+            self.label.setText(raw_body.decode("utf-8"))
 
     def onValueChange(self, variable, text):
         variable["value"] = text

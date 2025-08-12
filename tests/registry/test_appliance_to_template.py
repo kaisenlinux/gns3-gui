@@ -20,16 +20,16 @@ import json
 import os
 
 from gns3.registry.config import Config
-from gns3.settings import CONTROLLER_SETTINGS
+from gns3.settings import LOCAL_SERVER_SETTINGS
 from gns3.registry.appliance_to_template import ApplianceToTemplate
 
 
 @pytest.fixture(scope="function")
-def empty_config(tmpdir, images_dir, symbols_dir, local_config):
-    settings = local_config.loadSectionSettings("Controller", CONTROLLER_SETTINGS)
+def empty_config(tmpdir, images_dir, symbols_dir, local_server_config):
+    settings = local_server_config.loadSettings("Server", LOCAL_SERVER_SETTINGS)
     settings["images_path"] = images_dir
     settings["symbols_path"] = symbols_dir
-    local_config.saveSectionSettings("Controller", settings)
+    local_server_config.saveSettings("Server", settings)
     config = {
         "Servers": {
         },
@@ -85,7 +85,7 @@ def test_add_appliance_iou(iou_l3, appliance_file):
     assert new_template == {
         "category": "router",
         "template_type": "iou",
-        "symbol": "router",
+        "symbol": ":/symbols/router.svg",
         "compute_id": "local",
         "name": "Cisco IOU L3",
         "nvram": 128,
@@ -115,7 +115,7 @@ def test_add_appliance_docker(appliance_file):
         "template_type": "docker",
         "image": "gns3/openvswitch:latest",
         "category": "switch",
-        "symbol": "multilayer_switch",
+        "symbol": ":/symbols/multilayer_switch.svg",
         "compute_id": "local",
         "adapters": 16,
         "usage": "By default all interfaces are connected to the br0"
@@ -159,7 +159,7 @@ def test_add_appliance_dynamips(cisco_3745, appliance_file):
         "slot3": "",
         "slot4": "",
         "startup_config": "ios_base_startup-config.txt",
-        "symbol": "router",
+        "symbol": ":/symbols/router.svg",
         "wic0": "WIC-1T",
         "wic1": "WIC-1T",
         "wic2": "WIC-1T"
@@ -184,9 +184,10 @@ def test_add_appliance_guest(linux_microcore_img):
         "adapters": 1,
         "category": "guest",
         "console_type": "telnet",
-        "symbol": "qemu_guest",
+        "symbol": ":/symbols/qemu_guest.svg",
         "hda_disk_image": "linux-microcore-3.4.1.img",
         "name": "Micro Core Linux",
+        "qemu_path": "qemu-system-i386",
         "usage": "Just start the appliance",
         "ram": 32,
         "compute_id": "local"
@@ -208,8 +209,7 @@ def test_add_appliance_with_symbol(linux_microcore_img):
     assert new_template["symbol"] == ":/symbols/asa.svg"
 
 
-def test_add_appliance_with_symbol_from_symbols_dir(linux_microcore_img, symbols_dir, controller):
-
+def test_add_appliance_with_symbol_from_symbols_dir(empty_config, linux_microcore_img, symbols_dir):
     with open("tests/registry/appliances/microcore-linux.gns3a", encoding="utf-8") as f:
         config = json.load(f)
     config["images"] = [
@@ -221,7 +221,6 @@ def test_add_appliance_with_symbol_from_symbols_dir(linux_microcore_img, symbols
     ]
     config["symbol"] = "linux_guest.svg"
 
-    controller.settings()["symbols_path"] = symbols_dir
     symbol_path = os.path.join(symbols_dir, "linux_guest.svg")
     open(symbol_path, 'w+').close()
 
@@ -289,10 +288,11 @@ def test_add_appliance_router_two_disk(images_dir, appliance_file):
         "adapter_type": "e1000",
         "adapters": 8,
         "category": "router",
-        "symbol": "router",
+        "symbol": ":/symbols/router.svg",
         "hda_disk_image": "a",
         "hdb_disk_image": "b",
         "name": "Arista vEOS",
+        "qemu_path": "qemu-system-x86_64",
         "ram": 2048,
         "console_type": "telnet",
         "compute_id": "local"
@@ -311,11 +311,12 @@ def test_add_appliance_v8_default_properties_inheritance(images_dir):
     expected_result = {
         "name": "Empty VM",
         "template_type": "qemu",
-        "symbol": "qemu_guest",
+        "symbol": ":/symbols/qemu_guest.svg",
         "category": "guest",
         "adapter_type": "e1000",
         "adapters": 1,
         "ram": 1024,
+        "qemu_path": "qemu-system-x86_64",
         "hda_disk_interface": "sata",
         "platform": "x86_64",
         "console_type": "vnc",
@@ -330,6 +331,7 @@ def test_add_appliance_v8_default_properties_inheritance(images_dir):
     expected_result.update(
         {
             "adapters": 8,
+            "qemu_path": "qemu-system-i386",
             "platform": "i386",
         }
     )
@@ -340,9 +342,10 @@ def test_add_appliance_v8_default_properties_inheritance(images_dir):
     expected_result = {
         "name": "Empty VM",
         "template_type": "qemu",
-        "symbol": "qemu_guest",
+        "symbol": ":/symbols/qemu_guest.svg",
         "category": "guest",
         "ram": 512,
+        "qemu_path": "qemu-system-arm",
         "platform": "arm",
         "compute_id": "local",
         "usage": "Default at first boot the VM will start from the cdrom."

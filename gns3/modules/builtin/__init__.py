@@ -19,7 +19,9 @@
 Built-in module implementation.
 """
 
+from gns3.qt import QtWidgets
 from gns3.local_config import LocalConfig
+from gns3.local_server_config import LocalServerConfig
 
 from ..module import Module
 from .cloud import Cloud
@@ -51,15 +53,14 @@ class Builtin(Module):
 
         LocalConfig.instance().saveSectionSettings(self.__class__.__name__, self._settings)
 
-        # FIXME: handle server side config
-        # server_settings = {}
-        # config = LocalServerConfig.instance()
-        # if self._settings["default_nat_interface"]:
-        #     # save some settings to the local server config file
-        #     server_settings["default_nat_interface"] = self._settings["default_nat_interface"]
-        #     config.saveSettings(self.__class__.__name__, server_settings)
-        # else:
-        #     config.deleteSetting(self.__class__.__name__, "default_nat_interface")
+        server_settings = {}
+        config = LocalServerConfig.instance()
+        if self._settings["default_nat_interface"]:
+            # save some settings to the local server config file
+            server_settings["default_nat_interface"] = self._settings["default_nat_interface"]
+            config.saveSettings(self.__class__.__name__, server_settings)
+        else:
+            config.deleteSetting(self.__class__.__name__, "default_nat_interface")
 
     def _loadSettings(self):
         """

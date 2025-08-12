@@ -30,7 +30,7 @@ VBOX_VM_SETTINGS = {
     "vmname": "",
     "default_name_format": "{name}-{0}",
     "usage": "",
-    "symbol": "vbox_guest",
+    "symbol": ":/symbols/vbox_guest.svg",
     "category": Node.end_devices,
     "port_name_format": "Ethernet{0}",
     "port_segment_size": 0,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2021 GNS3 Technologies Inc.
+# Copyright (C) 2016 GNS3 Technologies Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@ import stat
 import shlex
 import socket
 import shutil
+import random
+import string
 import struct
 import psutil
 import signal
@@ -29,12 +31,13 @@ import subprocess
 
 
 from gns3.qt import QtWidgets, QtCore, qslot
-from gns3.settings import DEFAULT_CONTROLLER_HOST
+from gns3.settings import LOCAL_SERVER_SETTINGS, DEFAULT_LOCAL_SERVER_HOST
 from gns3.local_config import LocalConfig
-from gns3.http_client import HTTPClient
+from gns3.local_server_config import LocalServerConfig
 from gns3.utils.wait_for_connection_worker import WaitForConnectionWorker
 from gns3.utils.progress_dialog import ProgressDialog
 from gns3.utils.sudo import sudo
+from gns3.http_client import HTTPClient
 from gns3.controller import Controller
 
 
@@ -91,6 +94,13 @@ class LocalServer(QtCore.QObject):
         self._settings = {}
         self.localServerSettings()
         self._port = self._settings.get("port", 3080)
+        if not self._settings.get("auto_start", True):
+            if self._settings.get("host") is None:
+                self._http_client = HTTPClient(self._settings)
+                Controller.instance().setHttpClient(self._http_client)
+        else:
+            self._http_client = None
+
         self._stopping = False
         self._timer = QtCore.QTimer()
         self._timer.setInterval(5000)
@@ -111,6 +121,27 @@ class LocalServer(QtCore.QObject):
             from gns3.main_window import MainWindow
             return MainWindow.instance()
         return self._parent
+
+    def _checkWindowsService(self, service_name):
+
+        try:
+            import pywintypes
+            import win32service
+            import win32serviceutil
+        except ImportError as e:
+            log.error("Could not check if the {} service is running: {}".format(service_name, e))
+            return
+
+        try:
+            if win32serviceutil.QueryServiceStatus(service_name, None)[1] != win32service.SERVICE_RUNNING:
+                return False
+        except pywintypes.error as e:
+            if e.winerror == 1060:  # service is not installed
+                return False
+            else:
+                log.error("Could not check if the {} service is running: {}".format(service_name, e.strerror))
+
+        return True
 
     def _checkUbridgePermissions(self):
         """
@@ -172,6 +203,12 @@ class LocalServer(QtCore.QObject):
                 return False
         return True
 
+    def _passwordGenerate(self):
+        """
+        Generate a random password
+        """
+        return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(64))
+
     def localServerSettings(self):
         """
         Returns the local server settings.
@@ -179,8 +216,13 @@ class LocalServer(QtCore.QObject):
         :returns: local server settings (dict)
         """
 
-        settings = Controller.instance().settings()
+        settings = LocalServerConfig.instance().loadSettings("Server", LOCAL_SERVER_SETTINGS)
         self._settings = copy.copy(settings)
+
+        # user & password
+        if settings["auth"] is True and not settings["user"].strip():
+            settings["user"] = "admin"
+            settings["password"] = self._passwordGenerate()
 
         # local GNS3 server path
         local_server_path = shutil.which(settings["path"].strip())
@@ -210,17 +252,17 @@ class LocalServer(QtCore.QObject):
         """
 
         if "host" in new_settings and new_settings["host"] is None:
-            new_settings["host"] = DEFAULT_CONTROLLER_HOST
+            new_settings["host"] = DEFAULT_LOCAL_SERVER_HOST
         old_settings = copy.copy(self._settings)
         if not self._settings:
             self._settings = new_settings
         else:
             self._settings.update(new_settings)
         self._port = self._settings["port"]
-        Controller.instance().setSettings(self._settings)
+        LocalServerConfig.instance().saveSettings("Server", self._settings)
 
         # Settings have changed we need to restart the server
-        if not Controller.instance().connected() or old_settings != self._settings:
+        if old_settings != self._settings:
             if self._settings["auto_start"]:
                 # We restart the local server only if we really need. Auth can be hot change
                 settings_require_restart = ('host', 'port', 'path')
@@ -236,8 +278,12 @@ class LocalServer(QtCore.QObject):
             # If the controller is remote:
             else:
                 self.stopLocalServer(wait=True)
-                if Controller.instance().isRemote() and not Controller.instance().connected():
-                    Controller.instance().connect()
+
+            if self._settings.get("host") is None:
+                self._http_client = None
+            else:
+                self._http_client = HTTPClient(self._settings)
+            Controller.instance().setHttpClient(self._http_client)
 
     def shouldLocalServerAutoStart(self):
         """
@@ -279,24 +325,29 @@ class LocalServer(QtCore.QObject):
         Try to start the embedded gns3 server.
         """
 
-        local_server_already_running = self.isLocalServerRunning()
-        if local_server_already_running and self._server_started_by_me:
+        if not self.shouldLocalServerAutoStart():
+            self._http_client = HTTPClient(self._settings)
+            Controller.instance().setHttpClient(self._http_client)
+            return
+
+        if self.isLocalServerRunning() and self._server_started_by_me:
             return True
 
         # We check if two gui are not launched at the same time
         # to avoid killing the server of the other GUI
         if not LocalConfig.isMainGui():
             log.info("Not the main GUI, will not auto start the server")
-            Controller.instance().connect()
+            self._http_client = HTTPClient(self._settings)
+            Controller.instance().setHttpClient(self._http_client)
             return True
 
-        if local_server_already_running:
+        if self.isLocalServerRunning():
             log.debug("A local server already running on this host")
             # Try to kill the server. The server can be still running after
             # if the server was started by hand
             self._killAlreadyRunningServer()
 
-        if not local_server_already_running:
+        if not self.isLocalServerRunning():
             if not self.initLocalServer():
                 QtWidgets.QMessageBox.critical(self.parent(), "Local server", "Could not start the local server process: {}".format(self._settings["path"]))
                 return False
@@ -307,14 +358,15 @@ class LocalServer(QtCore.QObject):
         if self.parent():
             worker = WaitForConnectionWorker(self._settings["host"], self._port)
             progress_dialog = ProgressDialog(worker,
-                                             "Local controller",
-                                             "Starting local controller {} on port {}...".format(self._settings["host"], self._port),
+                                             "Local server",
+                                             "Connecting to server {} on port {}...".format(self._settings["host"], self._port),
                                              "Cancel", busy=True, parent=self.parent())
             progress_dialog.show()
             if not progress_dialog.exec_():
                 return False
         self._server_started_by_me = True
-        Controller.instance().connect()
+        self._http_client = HTTPClient(self._settings)
+        Controller.instance().setHttpClient(self._http_client)
         return True
 
     def initLocalServer(self):
@@ -323,6 +375,15 @@ class LocalServer(QtCore.QObject):
         """
 
         self._checkUbridgePermissions()
+
+        if sys.platform.startswith("win"):
+            import pywintypes
+            try:
+                if not self._checkWindowsService("npf") and not self._checkWindowsService("npcap"):
+                    log.warning("The NPF or NPCAP service is not installed, please install Winpcap or Npcap and reboot.")
+            except pywintypes.error as e:
+                log.warning("Could not check if the NPF or Npcap service is running: {}".format(e.strerror))
+
         self._port = self._settings["port"]
         # check the local server path
         local_server_path = self.localServerPath()
@@ -415,7 +476,7 @@ class LocalServer(QtCore.QObject):
                     pass
                 except OSError as e:
                     log.warning("could not delete server log file {}: {}".format(logpath, e))
-            command += ' --logfile="{}" --pid="{}"'.format(logpath, self._pid_path())
+            command += ' --log="{}" --pid="{}"'.format(logpath, self._pid_path())
 
         log.debug("Starting local server process with {}".format(command))
         try:
@@ -468,8 +529,19 @@ class LocalServer(QtCore.QObject):
         :returns: boolean
         """
 
-        http_client = HTTPClient(self._settings)
-        return http_client.checkServerRunning()
+        status, json_data = HTTPClient(self._settings).getSynchronous("GET", "/version")
+        if status == 401:  # Auth issue that need to be solved later
+            return True
+        elif json_data is None:
+            return False
+        elif status != 200:
+            return False
+        else:
+            version = json_data.get("version", None)
+            if version is None:
+                log.debug("Server is not a GNS3 server")
+                return False
+        return True
 
     def stopLocalServer(self, wait=False):
         """
@@ -480,14 +552,13 @@ class LocalServer(QtCore.QObject):
 
         if self.localServerProcessIsRunning():
             self._stopping = True
-            log.debug("Stopping local controller (PID={})".format(self._local_server_process.pid))
+            log.debug("Stopping local server (PID={})".format(self._local_server_process.pid))
             # local server is running, let's stop it
-            http_client = Controller.instance().httpClient()
-            if http_client:
-                http_client.shutdown()
+            if self._http_client:
+                self._http_client.shutdown()
             if wait:
                 worker = StopLocalServerWorker(self._local_server_process)
-                progress_dialog = ProgressDialog(worker, "Local server", "Waiting for the local controller to stop...", None, busy=True, parent=self.parent())
+                progress_dialog = ProgressDialog(worker, "Local server", "Waiting for the local server to stop...", None, busy=True, parent=self.parent())
                 progress_dialog.show()
                 progress_dialog.exec_()
                 if self._local_server_process.returncode is None:
@@ -510,8 +581,8 @@ class LocalServer(QtCore.QObject):
             self._local_server_process.wait(timeout=60)
         except subprocess.TimeoutExpired:
             proceed = QtWidgets.QMessageBox.question(self.parent(),
-                                                     "Local controller",
-                                                     "The local controller cannot be stopped, would you like to kill it?",
+                                                     "Local server",
+                                                     "The Local server cannot be stopped, would you like to kill it?",
                                                      QtWidgets.QMessageBox.Yes,
                                                      QtWidgets.QMessageBox.No)
 
